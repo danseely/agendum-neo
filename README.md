@@ -1,6 +1,8 @@
 <a href="https://github.com/danseely/agendum-neo/releases/latest"><img src="Resources/AppIcon-1024.png" width="128" alt="Agendum Neo app icon — download the latest release" align="left" hspace="16"></a>
 
-<h1 style="border-bottom: none;">Agendum Neo</h1>
+<svg width="360" height="52" viewBox="0 0 360 52" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Agendum Neo">
+  <text x="0" y="40" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="36" font-weight="700" fill="currentColor">Agendum Neo</text>
+</svg>
 
 A small native macOS app that surfaces your GitHub inbox:
 
