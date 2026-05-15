@@ -1,6 +1,6 @@
-<a href="https://github.com/danseely/agendum-neo/releases/latest"><img src="Resources/AppIcon-1024.png" width="128" alt="Agendum Neo app icon — download the latest release" align="left" hspace="16"></a>
-
 # Agendum Neo
+
+<a href="https://github.com/danseely/agendum-neo/releases/latest"><img src="Resources/AppIcon-1024.png" width="128" alt="Agendum Neo app icon — download the latest release" align="left" hspace="16"></a>
 
 A small native macOS app that surfaces your GitHub inbox:
 
