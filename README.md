@@ -1,6 +1,9 @@
-# Agendum Neo
+<h1>
+  <a href="https://github.com/danseely/agendum-neo/releases/latest"><img src="Resources/AppIcon-1024.png" width="72" alt="Agendum Neo app icon - download the latest release"></a>
+  Agendum Neo
+</h1>
 
-<a href="https://github.com/danseely/agendum-neo/releases/latest"><img src="Resources/AppIcon-1024.png" width="128" alt="Agendum Neo app icon — download the latest release" align="left"></a>
+---
 
 A small native macOS app that surfaces your GitHub inbox:
 
@@ -11,8 +14,6 @@ A small native macOS app that surfaces your GitHub inbox:
 Items are grouped per section and scoped to the GitHub namespace (your user or one of your orgs) you pick from the toolbar. State syncs every 5 minutes.
 
 Authentication piggybacks on the local [`gh` CLI](https://cli.github.com/) — there's no separate login. The app shells out to `gh auth token` to fetch the active token without disturbing `gh`'s active account.
-
-<br clear="left">
 
 ## Requirements
 
