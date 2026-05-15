@@ -2,17 +2,15 @@
 
 ### Agendum Neo
 
-A small native macOS app that surfaces your GitHub inbox:
-
-- Open PRs you authored, with their current review state
-- Open PRs where your review has been requested
-- Open issues assigned to you
+A small native macOS app that surfaces your GitHub inbox.
 
 [Download the latest release](https://github.com/danseely/agendum-neo/releases/latest)
 
 <br clear="left"/>
 
-Items are grouped per section and scoped to the GitHub namespace (your user or one of your orgs) you pick from the toolbar. State syncs every 5 minutes.
+---
+
+It pulls together your open PRs — both those you authored (with their current review state) and those where your review has been requested — alongside any issues assigned to you, scoped to the GitHub namespace (your user or one of your orgs) you pick from the toolbar. State syncs every 5 minutes.
 
 Authentication piggybacks on the local [`gh` CLI](https://cli.github.com/) — there's no separate login. The app shells out to `gh auth token` to fetch the active token without disturbing `gh`'s active account.
 
