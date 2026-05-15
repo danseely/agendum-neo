@@ -163,12 +163,12 @@ private struct SearchNode: Decodable {
     let authorLogin: String?
     let authorName: String?
     let repository: String?
-    let reviewDecision: String?
+    let reviewRequestsTotal: Int?
     let reviewsTotal: Int?
 
     private enum CodingKeys: String, CodingKey {
         case typename = "__typename"
-        case id, number, title, url, updatedAt, isDraft, author, repository, reviewDecision, reviews
+        case id, number, title, url, updatedAt, isDraft, author, repository, reviewRequests, reviews
     }
 
     private struct AuthorBox: Decodable {
@@ -176,7 +176,7 @@ private struct SearchNode: Decodable {
         let name: String?
     }
     private struct RepoBox: Decodable { let nameWithOwner: String }
-    private struct ReviewsBox: Decodable { let totalCount: Int }
+    private struct CountBox: Decodable { let totalCount: Int }
 
     init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -191,8 +191,8 @@ private struct SearchNode: Decodable {
         self.authorLogin = author?.login
         self.authorName = author?.name
         self.repository = (try c.decodeIfPresent(RepoBox.self, forKey: .repository))?.nameWithOwner
-        self.reviewDecision = try c.decodeIfPresent(String.self, forKey: .reviewDecision)
-        self.reviewsTotal = (try c.decodeIfPresent(ReviewsBox.self, forKey: .reviews))?.totalCount
+        self.reviewRequestsTotal = (try c.decodeIfPresent(CountBox.self, forKey: .reviewRequests))?.totalCount
+        self.reviewsTotal = (try c.decodeIfPresent(CountBox.self, forKey: .reviews))?.totalCount
     }
 
     func toPullRequest() -> PullRequest? {
@@ -201,17 +201,6 @@ private struct SearchNode: Decodable {
             let id, let number, let title, let url, let updatedAt,
             let repository
         else { return nil }
-        let count = reviewsTotal ?? 0
-        let state: ReviewState
-        switch reviewDecision {
-        case "APPROVED": state = .approved
-        case "CHANGES_REQUESTED": state = .changesRequested
-        case "REVIEW_REQUIRED": state = .waiting
-        case nil, .some(""):
-            state = count > 0 ? .commented : .waiting
-        default:
-            state = count > 0 ? .commented : .waiting
-        }
         return PullRequest(
             id: id,
             number: number,
@@ -221,8 +210,8 @@ private struct SearchNode: Decodable {
             author: GitHubAuthorDisplayName.firstName(name: authorName, login: authorLogin),
             isDraft: isDraft ?? false,
             updatedAt: updatedAt,
-            reviewState: state,
-            reviewCount: count
+            reviewRequestCount: reviewRequestsTotal ?? 0,
+            reviewCount: reviewsTotal ?? 0
         )
     }
 
@@ -239,6 +228,7 @@ private struct SearchNode: Decodable {
             url: url,
             repository: repository,
             author: GitHubAuthorDisplayName.firstName(name: authorName, login: authorLogin),
+            authorLogin: authorLogin ?? "",
             updatedAt: updatedAt
         )
     }

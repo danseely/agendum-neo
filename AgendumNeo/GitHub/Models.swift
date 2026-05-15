@@ -18,11 +18,19 @@ struct Namespace: Sendable, Hashable, Identifiable, Codable {
     var displayName: String { owner }
 }
 
-enum ReviewState: String, Sendable, Codable {
-    case waiting
-    case approved
-    case changesRequested
-    case commented
+enum PRAuthoredStatus: String, Sendable, Codable {
+    case open
+    case waitingForReview
+    case reviewReceived
+}
+
+enum PRReviewStatus: String, Sendable, Codable {
+    case reviewRequested
+}
+
+enum IssueStatus: String, Sendable, Codable {
+    case open
+    case assignedToYou
 }
 
 struct PullRequest: Sendable, Hashable, Identifiable, Codable {
@@ -34,8 +42,18 @@ struct PullRequest: Sendable, Hashable, Identifiable, Codable {
     let author: String
     let isDraft: Bool
     let updatedAt: Date
-    let reviewState: ReviewState
+    let reviewRequestCount: Int
     let reviewCount: Int
+
+    var authoredStatus: PRAuthoredStatus {
+        Self.deriveAuthoredStatus(reviewRequestCount: reviewRequestCount, reviewCount: reviewCount)
+    }
+
+    static func deriveAuthoredStatus(reviewRequestCount: Int, reviewCount: Int) -> PRAuthoredStatus {
+        if reviewCount > 0 { return .reviewReceived }
+        if reviewRequestCount > 0 { return .waitingForReview }
+        return .open
+    }
 }
 
 struct Issue: Sendable, Hashable, Identifiable, Codable {
@@ -45,7 +63,17 @@ struct Issue: Sendable, Hashable, Identifiable, Codable {
     let url: URL
     let repository: String
     let author: String
+    let authorLogin: String
     let updatedAt: Date
+
+    func status(viewerLogin: String?) -> IssueStatus {
+        Self.deriveStatus(authorLogin: authorLogin, viewerLogin: viewerLogin)
+    }
+
+    static func deriveStatus(authorLogin: String, viewerLogin: String?) -> IssueStatus {
+        guard let viewerLogin, !viewerLogin.isEmpty else { return .assignedToYou }
+        return authorLogin.caseInsensitiveCompare(viewerLogin) == .orderedSame ? .open : .assignedToYou
+    }
 }
 
 enum GitHubAuthorDisplayName {

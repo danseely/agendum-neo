@@ -46,7 +46,7 @@ enum Queries {
       isDraft
       author { ...authorFields }
       repository { nameWithOwner }
-      reviewDecision
+      reviewRequests(first: 1) { totalCount }
       reviews(first: 1) { totalCount }
     }
 
