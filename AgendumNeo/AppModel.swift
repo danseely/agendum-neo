@@ -63,7 +63,11 @@ final class AppModel {
             self.activeNamespace = chosen
             self.lastError = nil
         } catch {
-            self.lastError = String(describing: error)
+            if let ghError = error as? GHCLIError {
+                self.lastError = ghError.description
+            } else {
+                self.lastError = String(describing: error)
+            }
         }
     }
 

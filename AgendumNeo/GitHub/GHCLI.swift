@@ -1,12 +1,29 @@
 import Foundation
 
-enum GHCLIError: Error, Sendable {
+enum GHCLIError: Error, CustomStringConvertible, LocalizedError, Sendable {
     case ghNotInstalled
     case ghReturnedError(exitCode: Int32, stderr: String)
     case parseFailed(String)
+
+    var description: String {
+        switch self {
+        case .ghNotInstalled:
+            return "gh not found in PATH. Install via Homebrew or run from a terminal."
+        case .ghReturnedError(let exitCode, let stderr):
+            return "gh exited \(exitCode): \(stderr.trimmingCharacters(in: .whitespacesAndNewlines))"
+        case .parseFailed(let message):
+            return "Failed to parse gh output: \(message)"
+        }
+    }
+
+    var errorDescription: String? {
+        description
+    }
 }
 
 struct GHCLI {
+    static let ghSearchPath = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+
     static func listAccounts() async throws -> [GHAccount] {
         let result = try await run(arguments: ["auth", "status", "--json", "hosts"])
         guard result.exitCode == 0 else {
@@ -39,7 +56,6 @@ struct GHCLI {
         let stderr: String
     }
 
-    // Using /usr/bin/env to resolve `gh` via PATH avoids hardcoding /opt/homebrew.
     private static func run(arguments: [String]) async throws -> ProcessResult {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ProcessResult, Error>) in
             // Detach so the blocking Process work doesn't pin a cooperative thread.
@@ -48,6 +64,7 @@ struct GHCLI {
                 let process = Process()
                 process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
                 process.arguments = ["gh"] + args
+                process.environment = ["PATH": ghSearchPath]
 
                 let outPipe = Pipe()
                 let errPipe = Pipe()
@@ -65,6 +82,11 @@ struct GHCLI {
                 let outData = outPipe.fileHandleForReading.readDataToEndOfFile()
                 let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
                 process.waitUntilExit()
+
+                if process.terminationStatus == 127 {
+                    continuation.resume(throwing: GHCLIError.ghNotInstalled)
+                    return
+                }
 
                 let result = ProcessResult(
                     exitCode: process.terminationStatus,

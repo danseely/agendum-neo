@@ -24,4 +24,17 @@ struct ModelTests {
         let decoded = try JSONDecoder().decode([ReviewState].self, from: encoded)
         #expect(decoded == states)
     }
+
+    @Test("GH CLI missing message is actionable")
+    func ghCLIMissingMessage() {
+        let message = "gh not found in PATH. Install via Homebrew or run from a terminal."
+        #expect(String(describing: GHCLIError.ghNotInstalled) == message)
+        #expect(GHCLIError.ghNotInstalled.localizedDescription == message)
+    }
+
+    @Test("GH CLI search path covers common Mac install locations")
+    func ghCLISearchPath() {
+        let components = GHCLI.ghSearchPath.split(separator: ":").map(String.init)
+        #expect(components == ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"])
+    }
 }
