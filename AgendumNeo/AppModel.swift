@@ -11,6 +11,7 @@ final class AppModel {
     var lastError: String?
     var isLoading: Bool = false
     var lastSyncedAt: Date?
+    var hasCompletedFirstSync: Bool = false
 
     @ObservationIgnored private var sync: SyncEngine!
     @ObservationIgnored private var didBootstrap = false
@@ -26,7 +27,7 @@ final class AppModel {
         guard !didBootstrap else { return }
         didBootstrap = true
         if DemoData.isEnabled {
-            loadDemoState()
+            await loadDemoState()
             return
         }
         await loadNamespaces()
@@ -35,7 +36,10 @@ final class AppModel {
         }
     }
 
-    private func loadDemoState() {
+    private func loadDemoState() async {
+        // Simulate a brief network round-trip so the loading screen is
+        // actually visible in demo mode.
+        try? await Task.sleep(for: .milliseconds(800))
         namespaces = DemoData.namespaces
         let chosen = namespaces.first(where: { $0.kind == .user }) ?? namespaces.first
         activeNamespace = chosen
@@ -44,6 +48,7 @@ final class AppModel {
             lastSyncedAt = Date()
         }
         lastError = nil
+        hasCompletedFirstSync = true
     }
 
     func loadNamespaces() async {
@@ -53,6 +58,7 @@ final class AppModel {
                 self.namespaces = []
                 self.activeNamespace = nil
                 self.lastError = "No authenticated `gh` account found. Run `gh auth login`."
+                self.hasCompletedFirstSync = true
                 return
             }
 
@@ -83,6 +89,7 @@ final class AppModel {
             } else {
                 self.lastError = String(describing: error)
             }
+            self.hasCompletedFirstSync = true
         }
     }
 

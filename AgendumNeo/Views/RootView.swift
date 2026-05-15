@@ -6,14 +6,24 @@ enum InboxItemID: Hashable {
 }
 
 struct RootView: View {
+    enum Presentation {
+        case window
+        case menuBar
+    }
+
     @Environment(AppModel.self) private var app
     @Environment(\.openURL) private var openURL
 
     @State private var selection: InboxItemID?
+    @State private var lockedIdealHeight: CGFloat?
+
+    var presentation: Presentation = .window
 
     var body: some View {
         Group {
-            if app.namespaces.isEmpty {
+            if showLoadingScreen {
+                loadingContent
+            } else if app.namespaces.isEmpty {
                 unavailableContent
             } else {
                 inboxList
@@ -23,7 +33,7 @@ struct RootView: View {
             minWidth: 620,
             idealWidth: 720,
             minHeight: 320,
-            idealHeight: 520
+            idealHeight: currentIdealHeight
         )
         .toolbar { toolbarContent }
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -32,6 +42,87 @@ struct RootView: View {
                 .padding(.vertical, 6)
                 .background(.bar)
         }
+        .onChange(of: app.hasCompletedFirstSync, initial: true) { _, completed in
+            guard presentation == .window, lockedIdealHeight == nil, completed else { return }
+            let target = computeIdealContentHeight()
+            lockedIdealHeight = target
+            resizeWindowHeight(to: target)
+        }
+    }
+
+    /// Resize the live NSWindow to the target content height, anchored to the
+    /// window's current top edge so the title bar stays put. SwiftUI's
+    /// `.windowResizability(.contentSize)` only honors `idealHeight` at window
+    /// creation, so once the window is on-screen we drive AppKit directly.
+    /// Deferred a few frames so the loading-state transition completes before
+    /// the resize animation kicks in.
+    private func resizeWindowHeight(to targetContentHeight: CGFloat) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            guard let window = NSApp.windows.first(where: {
+                $0.styleMask.contains(.titled) && $0.contentView != nil
+            }) else { return }
+
+            let currentFrame = window.frame
+            let currentContent = window.contentRect(forFrameRect: currentFrame)
+            let targetContentRect = NSRect(
+                x: currentContent.origin.x,
+                y: currentContent.origin.y,
+                width: currentContent.width,
+                height: targetContentHeight
+            )
+            let targetFrame = window.frameRect(forContentRect: targetContentRect)
+            var newFrame = currentFrame
+            newFrame.size.height = targetFrame.height
+            newFrame.origin.y = currentFrame.maxY - targetFrame.height
+
+            window.setFrame(newFrame, display: true, animate: true)
+        }
+    }
+
+    private var currentIdealHeight: CGFloat {
+        if presentation == .menuBar { return 520 }
+        return lockedIdealHeight ?? loadingIdealHeight
+    }
+
+    private var loadingIdealHeight: CGFloat { 320 }
+
+    // MARK: - First-sync gating / sizing
+
+    private var showLoadingScreen: Bool {
+        // Before the first sync completes, show a blank loading screen instead
+        // of empty section headers or the "sign-in required" empty state.
+        !app.hasCompletedFirstSync && app.lastError == nil
+    }
+
+    private var loadingContent: some View {
+        ZStack {
+            Color(NSColor.windowBackgroundColor)
+                .ignoresSafeArea()
+            VStack(spacing: 8) {
+                ProgressView()
+                    .controlSize(.regular)
+                Text("Loading...")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Compute the window's ideal content height from the current snapshot.
+    /// With `.windowResizability(.contentSize)` the `WindowGroup` follows this
+    /// value, so we apply it once on first-sync completion to grow the window
+    /// to fit the loaded data. Capped at 80% of the screen's visible height.
+    private func computeIdealContentHeight() -> CGFloat {
+        let screenHeight =
+            NSScreen.main?.visibleFrame.height
+            ?? InboxWindowHeight.fallbackScreenHeight
+        return InboxWindowHeight.compute(
+            authoredPRCount: app.snapshot?.authoredPRs.count ?? 0,
+            reviewRequestedPRCount: app.snapshot?.reviewRequestedPRs.count ?? 0,
+            assignedIssueCount: app.snapshot?.assignedIssues.count ?? 0,
+            screenVisibleHeight: screenHeight
+        )
     }
 
     // MARK: - Toolbar

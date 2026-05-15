@@ -50,10 +50,12 @@ final class SyncEngine {
             model.snapshot = snapshot
             model.lastSyncedAt = Date()
             model.lastError = nil
+            model.hasCompletedFirstSync = true
         } catch is CancellationError {
             return
         } catch {
             model.lastError = errorMessage(error)
+            model.hasCompletedFirstSync = true
         }
     }
 

@@ -6,7 +6,7 @@ struct AgendumNeoApp: App {
 
     var body: some Scene {
         WindowGroup("Agendum Neo") {
-            RootView()
+            RootView(presentation: .window)
                 .environment(app)
                 .task { await app.bootstrap() }
         }
@@ -22,7 +22,7 @@ struct AgendumNeoApp: App {
         }
 
         MenuBarExtra {
-            RootView()
+            RootView(presentation: .menuBar)
                 .environment(app)
                 .task { await app.bootstrap() }
         } label: {
