@@ -1,13 +1,16 @@
-<h1>
-  <a href="https://github.com/danseely/agendum-neo/releases/latest"><img src="Resources/AppIcon-1024.png" width="72" align="middle" alt="Agendum Neo app icon - download the latest release"></a>
-  &nbsp;Agendum Neo
-</h1>
+<a href="https://github.com/danseely/agendum-neo/releases/latest"><img src="Resources/AppIcon-1024.png" width="160" align="left" alt="Agendum Neo app icon"/></a>
+
+### Agendum Neo
 
 A small native macOS app that surfaces your GitHub inbox:
 
 - Open PRs you authored, with their current review state
 - Open PRs where your review has been requested
 - Open issues assigned to you
+
+[Download the latest release](https://github.com/danseely/agendum-neo/releases/latest)
+
+<br clear="left"/>
 
 Items are grouped per section and scoped to the GitHub namespace (your user or one of your orgs) you pick from the toolbar. State syncs every 5 minutes.
 
