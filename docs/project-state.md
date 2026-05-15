@@ -16,9 +16,9 @@ Align Agendum Neo with macOS Tahoe expectations from issue #5 through a focused 
 - WWDC25 "Build a SwiftUI app with the new design": https://developer.apple.com/videos/play/wwdc2025/323
 
 ## Current State
-- Branch: codex/issue-5-tahoe-standards
+- Branch: codex/unified-tahoe-window
 - Done: Moved top-level namespace and refresh controls into a system toolbar; moved sync/error status into a bottom safe-area bar surface; replaced fixed-width table-like rows with adaptive two-line rows; added standard sign-in unavailable content with a working post-login refresh path; kept XcodeGen deployment metadata on macOS 15 for CI runner compatibility.
-- In progress: PR #11 CI recheck after compatibility fix.
+- In progress: Draft PR #24 adds explicit unified toolbar window styling for system-owned Tahoe window curvature.
 - Blocked: none.
 
 ## Decisions
@@ -41,6 +41,6 @@ Align Agendum Neo with macOS Tahoe expectations from issue #5 through a focused 
 - 2026-05-15: Before opening the window-style PR, `xcodebuild -project AgendumNeo.xcodeproj -scheme AgendumNeo -configuration Debug -destination 'platform=macOS' build` succeeded.
 
 ## Handoff / Next Actions
-1. Push compatibility fix to `codex/issue-5-tahoe-standards`.
-2. Recheck PR #11 CI.
+1. Recheck PR #24 CI.
+2. Visually inspect the built app window against Safari on Tahoe.
 3. Do not merge unless explicitly asked.
