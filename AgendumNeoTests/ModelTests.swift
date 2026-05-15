@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import CoreGraphics
 @testable import AgendumNeo
 
 @Suite("Model")
@@ -71,5 +72,82 @@ struct ModelTests {
         #expect(environment["PATH"] == GHCLI.ghSearchPath)
         #expect(environment["HOME"] == "/Users/tester")
         #expect(environment["GH_CONFIG_DIR"] == "/Users/tester/.config/gh")
+    }
+}
+
+@Suite("Inbox window height")
+struct InboxWindowHeightTests {
+
+    @Test("Empty snapshot stays at or above the minimum floor")
+    func emptySnapshotClampsToFloor() {
+        let height = InboxWindowHeight.compute(
+            authoredPRCount: 0,
+            reviewRequestedPRCount: 0,
+            assignedIssueCount: 0,
+            screenVisibleHeight: 1000
+        )
+        // Each empty section still renders one "No ..." row, so the
+        // computed height sits just above the 320 floor. The clamp
+        // guarantees we never drop below it.
+        #expect(height >= InboxWindowHeight.minimumHeight)
+        // And the cap is far away, so the floor is the only thing
+        // keeping us honest here.
+        let cap = 1000 * InboxWindowHeight.screenFraction
+        #expect(height < cap)
+    }
+
+    @Test("Small snapshot lands between floor and screen cap")
+    func smallSnapshotBelowScreenCap() {
+        let screen: CGFloat = 1000
+        let height = InboxWindowHeight.compute(
+            authoredPRCount: 2,
+            reviewRequestedPRCount: 1,
+            assignedIssueCount: 0,
+            screenVisibleHeight: screen
+        )
+        let cap = screen * InboxWindowHeight.screenFraction
+        #expect(height >= InboxWindowHeight.minimumHeight)
+        #expect(height <= cap)
+    }
+
+    @Test("Huge snapshot is clamped to 80% of screen height")
+    func hugeSnapshotClampsToScreenCap() {
+        let screen: CGFloat = 1000
+        let height = InboxWindowHeight.compute(
+            authoredPRCount: 50,
+            reviewRequestedPRCount: 50,
+            assignedIssueCount: 50,
+            screenVisibleHeight: screen
+        )
+        #expect(height == screen * InboxWindowHeight.screenFraction)
+    }
+
+    @Test("Default screen height parameter is deterministic")
+    func defaultScreenHeightIsDeterministic() {
+        // Callers without an NSScreen (and tests) should get a stable
+        // ceiling derived from the documented fallback, not the host's
+        // physical display.
+        let height = InboxWindowHeight.compute(
+            authoredPRCount: 100,
+            reviewRequestedPRCount: 100,
+            assignedIssueCount: 100
+        )
+        let expectedCap =
+            InboxWindowHeight.fallbackScreenHeight
+            * InboxWindowHeight.screenFraction
+        #expect(height == expectedCap)
+    }
+}
+
+@Suite("App model lifecycle")
+@MainActor
+struct AppModelLifecycleTests {
+
+    @Test("First-sync flag starts false at init")
+    func firstSyncFlagDefaultsFalse() {
+        let model = AppModel()
+        #expect(model.hasCompletedFirstSync == false)
+        #expect(model.snapshot == nil)
+        #expect(model.lastError == nil)
     }
 }

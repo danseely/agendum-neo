@@ -88,35 +88,15 @@ struct RootView: View {
     /// value, so we apply it once on first-sync completion to grow the window
     /// to fit the loaded data. Capped at 80% of the screen's visible height.
     private func computeIdealContentHeight() -> CGFloat {
-        // Estimated row metrics. These are deliberate over-estimates so we
-        // don't clip rows; if too tall, the user can shrink the window.
-        let rowHeight: CGFloat = 30
-        let sectionHeaderHeight: CGFloat = 34
-        let sectionSpacing: CGFloat = 12
-        let toolbarPadding: CGFloat = 52
-        let footerPadding: CGFloat = 40
-        let listVerticalPadding: CGFloat = 16
-
-        let authored = app.snapshot?.authoredPRs.count ?? 0
-        let reviews = app.snapshot?.reviewRequestedPRs.count ?? 0
-        let issues = app.snapshot?.assignedIssues.count ?? 0
-
-        // Each section renders at least one row ("No PRs"/"No issues")
-        // when its body is empty, so floor each section count at 1.
-        let totalRows = max(authored, 1) + max(reviews, 1) + max(issues, 1)
-
-        let contentHeight =
-            CGFloat(totalRows) * rowHeight
-            + 3 * sectionHeaderHeight
-            + 2 * sectionSpacing
-            + listVerticalPadding
-            + toolbarPadding
-            + footerPadding
-
-        let screenHeight = NSScreen.main?.visibleFrame.height ?? 800
-        let cap = screenHeight * 0.8
-
-        return min(max(contentHeight, 320), cap)
+        let screenHeight =
+            NSScreen.main?.visibleFrame.height
+            ?? InboxWindowHeight.fallbackScreenHeight
+        return InboxWindowHeight.compute(
+            authoredPRCount: app.snapshot?.authoredPRs.count ?? 0,
+            reviewRequestedPRCount: app.snapshot?.reviewRequestedPRs.count ?? 0,
+            assignedIssueCount: app.snapshot?.assignedIssues.count ?? 0,
+            screenVisibleHeight: screenHeight
+        )
     }
 
     // MARK: - Toolbar
