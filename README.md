@@ -2,7 +2,7 @@
 
 ### Agendum Neo
 
-A small native macOS app that surfaces your GitHub inbox.
+A small native macOS app that surfaces your GitHub inbox
 
 [Download the latest release](https://github.com/danseely/agendum-neo/releases/latest)
 
