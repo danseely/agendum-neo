@@ -60,12 +60,7 @@ final class SyncEngine {
     private func errorMessage(_ error: any Error) -> String {
         switch error {
         case let e as GHCLIError:
-            switch e {
-            case .ghNotInstalled: return "`gh` CLI not found in PATH."
-            case .ghReturnedError(let code, let stderr):
-                return "gh exited \(code): \(stderr.trimmingCharacters(in: .whitespacesAndNewlines))"
-            case .parseFailed(let msg): return "Failed to parse gh output: \(msg)"
-            }
+            return e.description
         case let e as GitHubError:
             switch e {
             case .httpStatus(let code, let body):
