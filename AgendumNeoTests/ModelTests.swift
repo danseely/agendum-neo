@@ -151,3 +151,56 @@ struct AppModelLifecycleTests {
         #expect(model.lastError == nil)
     }
 }
+
+@Suite("Sync status label")
+struct SyncStatusLabelTests {
+    private let synced = Date(timeIntervalSince1970: 1_700_000_000)
+
+    @Test("Zero seconds elapsed reads as just now")
+    func zeroSecondsJustNow() {
+        let now = synced
+        #expect(SyncStatusLabel.text(synced: synced, now: now) == "Synced just now")
+    }
+
+    @Test("Thirty seconds elapsed reads as just now")
+    func thirtySecondsJustNow() {
+        let now = synced.addingTimeInterval(30)
+        #expect(SyncStatusLabel.text(synced: synced, now: now) == "Synced just now")
+    }
+
+    @Test("Fifty-nine seconds elapsed reads as just now")
+    func fiftyNineSecondsJustNow() {
+        let now = synced.addingTimeInterval(59)
+        #expect(SyncStatusLabel.text(synced: synced, now: now) == "Synced just now")
+    }
+
+    @Test("Sixty seconds elapsed reads as one minute ago")
+    func sixtySecondsOneMinute() {
+        let now = synced.addingTimeInterval(60)
+        #expect(SyncStatusLabel.text(synced: synced, now: now) == "Synced 1 minute ago")
+    }
+
+    @Test("Ninety seconds elapsed reads as one minute ago")
+    func ninetySecondsOneMinute() {
+        let now = synced.addingTimeInterval(90)
+        #expect(SyncStatusLabel.text(synced: synced, now: now) == "Synced 1 minute ago")
+    }
+
+    @Test("Two minutes elapsed pluralizes")
+    func twoMinutesAgo() {
+        let now = synced.addingTimeInterval(120)
+        #expect(SyncStatusLabel.text(synced: synced, now: now) == "Synced 2 minutes ago")
+    }
+
+    @Test("Five minutes elapsed pluralizes")
+    func fiveMinutesAgo() {
+        let now = synced.addingTimeInterval(5 * 60)
+        #expect(SyncStatusLabel.text(synced: synced, now: now) == "Synced 5 minutes ago")
+    }
+
+    @Test("Sixty minutes elapsed reads as sixty minutes ago")
+    func sixtyMinutesAgo() {
+        let now = synced.addingTimeInterval(60 * 60)
+        #expect(SyncStatusLabel.text(synced: synced, now: now) == "Synced 60 minutes ago")
+    }
+}
