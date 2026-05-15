@@ -27,7 +27,7 @@ final class AppModel {
         guard !didBootstrap else { return }
         didBootstrap = true
         if DemoData.isEnabled {
-            loadDemoState()
+            await loadDemoState()
             return
         }
         await loadNamespaces()
@@ -36,7 +36,10 @@ final class AppModel {
         }
     }
 
-    private func loadDemoState() {
+    private func loadDemoState() async {
+        // Simulate a brief network round-trip so the loading screen is
+        // actually visible in demo mode.
+        try? await Task.sleep(for: .milliseconds(800))
         namespaces = DemoData.namespaces
         let chosen = namespaces.first(where: { $0.kind == .user }) ?? namespaces.first
         activeNamespace = chosen

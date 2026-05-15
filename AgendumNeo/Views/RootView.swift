@@ -43,13 +43,39 @@ struct RootView: View {
                 .background(.bar)
         }
         .onChange(of: app.hasCompletedFirstSync, initial: true) { _, completed in
-            // Lock the ideal height in once, on first-sync completion. After
-            // this, refresh-driven snapshot changes won't yank the window
-            // size; the user controls it from the resize grip.
-            guard presentation == .window, lockedIdealHeight == nil else { return }
-            if completed {
-                lockedIdealHeight = computeIdealContentHeight()
-            }
+            guard presentation == .window, lockedIdealHeight == nil, completed else { return }
+            let target = computeIdealContentHeight()
+            lockedIdealHeight = target
+            resizeWindowHeight(to: target)
+        }
+    }
+
+    /// Resize the live NSWindow to the target content height, anchored to the
+    /// window's current top edge so the title bar stays put. SwiftUI's
+    /// `.windowResizability(.contentSize)` only honors `idealHeight` at window
+    /// creation, so once the window is on-screen we drive AppKit directly.
+    /// Deferred a few frames so the loading-state transition completes before
+    /// the resize animation kicks in.
+    private func resizeWindowHeight(to targetContentHeight: CGFloat) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            guard let window = NSApp.windows.first(where: {
+                $0.styleMask.contains(.titled) && $0.contentView != nil
+            }) else { return }
+
+            let currentFrame = window.frame
+            let currentContent = window.contentRect(forFrameRect: currentFrame)
+            let targetContentRect = NSRect(
+                x: currentContent.origin.x,
+                y: currentContent.origin.y,
+                width: currentContent.width,
+                height: targetContentHeight
+            )
+            let targetFrame = window.frameRect(forContentRect: targetContentRect)
+            var newFrame = currentFrame
+            newFrame.size.height = targetFrame.height
+            newFrame.origin.y = currentFrame.maxY - targetFrame.height
+
+            window.setFrame(newFrame, display: true, animate: true)
         }
     }
 
