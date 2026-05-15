@@ -25,6 +25,19 @@ struct ModelTests {
         #expect(decoded == states)
     }
 
+    @Test("Author display uses first GitHub display-name token")
+    func authorDisplayUsesFirstDisplayNameToken() {
+        #expect(GitHubAuthorDisplayName.firstName(name: "Dan Seely", login: "danseely") == "Dan")
+        #expect(GitHubAuthorDisplayName.firstName(name: "  Dana  Scully  ", login: "dscully") == "Dana")
+    }
+
+    @Test("Author display falls back to login")
+    func authorDisplayFallsBackToLogin() {
+        #expect(GitHubAuthorDisplayName.firstName(name: nil, login: "danseely") == "danseely")
+        #expect(GitHubAuthorDisplayName.firstName(name: "   ", login: "danseely") == "danseely")
+        #expect(GitHubAuthorDisplayName.firstName(name: nil, login: nil) == "")
+    }
+
     @Test("GH CLI missing message is actionable")
     func ghCLIMissingMessage() {
         let message = "gh not found in PATH. Install via Homebrew or run from a terminal."

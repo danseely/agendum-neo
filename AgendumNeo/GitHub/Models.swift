@@ -48,6 +48,17 @@ struct Issue: Sendable, Hashable, Identifiable, Codable {
     let updatedAt: Date
 }
 
+enum GitHubAuthorDisplayName {
+    static func firstName(name: String?, login: String?) -> String {
+        let trimmedName = name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if let firstName = trimmedName.split(whereSeparator: \.isWhitespace).first {
+            return String(firstName)
+        }
+
+        return login ?? ""
+    }
+}
+
 struct InboxSnapshot: Sendable, Hashable, Codable {
     let namespace: Namespace
     let fetchedAt: Date

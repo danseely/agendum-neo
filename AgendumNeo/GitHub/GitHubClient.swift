@@ -161,6 +161,7 @@ private struct SearchNode: Decodable {
     let updatedAt: Date?
     let isDraft: Bool?
     let authorLogin: String?
+    let authorName: String?
     let repository: String?
     let reviewDecision: String?
     let reviewsTotal: Int?
@@ -170,7 +171,10 @@ private struct SearchNode: Decodable {
         case id, number, title, url, updatedAt, isDraft, author, repository, reviewDecision, reviews
     }
 
-    private struct AuthorBox: Decodable { let login: String? }
+    private struct AuthorBox: Decodable {
+        let login: String?
+        let name: String?
+    }
     private struct RepoBox: Decodable { let nameWithOwner: String }
     private struct ReviewsBox: Decodable { let totalCount: Int }
 
@@ -183,7 +187,9 @@ private struct SearchNode: Decodable {
         self.url = try c.decodeIfPresent(URL.self, forKey: .url)
         self.updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt)
         self.isDraft = try c.decodeIfPresent(Bool.self, forKey: .isDraft)
-        self.authorLogin = (try c.decodeIfPresent(AuthorBox.self, forKey: .author))?.login
+        let author = try c.decodeIfPresent(AuthorBox.self, forKey: .author)
+        self.authorLogin = author?.login
+        self.authorName = author?.name
         self.repository = (try c.decodeIfPresent(RepoBox.self, forKey: .repository))?.nameWithOwner
         self.reviewDecision = try c.decodeIfPresent(String.self, forKey: .reviewDecision)
         self.reviewsTotal = (try c.decodeIfPresent(ReviewsBox.self, forKey: .reviews))?.totalCount
@@ -212,7 +218,7 @@ private struct SearchNode: Decodable {
             title: title,
             url: url,
             repository: repository,
-            author: authorLogin ?? "",
+            author: GitHubAuthorDisplayName.firstName(name: authorName, login: authorLogin),
             isDraft: isDraft ?? false,
             updatedAt: updatedAt,
             reviewState: state,
@@ -232,7 +238,7 @@ private struct SearchNode: Decodable {
             title: title,
             url: url,
             repository: repository,
-            author: authorLogin ?? "",
+            author: GitHubAuthorDisplayName.firstName(name: authorName, login: authorLogin),
             updatedAt: updatedAt
         )
     }
