@@ -37,4 +37,17 @@ struct ModelTests {
         let components = GHCLI.ghSearchPath.split(separator: ":").map(String.init)
         #expect(components == ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"])
     }
+
+    @Test("GH CLI environment preserves auth context")
+    func ghCLIEnvironmentPreservesAuthContext() {
+        let environment = GHCLI.ghProcessEnvironment(base: [
+            "HOME": "/Users/tester",
+            "GH_CONFIG_DIR": "/Users/tester/.config/gh",
+            "PATH": "/custom/bin"
+        ])
+
+        #expect(environment["PATH"] == GHCLI.ghSearchPath)
+        #expect(environment["HOME"] == "/Users/tester")
+        #expect(environment["GH_CONFIG_DIR"] == "/Users/tester/.config/gh")
+    }
 }
