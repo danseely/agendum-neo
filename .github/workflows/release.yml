@@ -10,7 +10,7 @@ on:
 
 jobs:
   build-dmg:
-    runs-on: macos-latest
+    runs-on: macos-26
     permissions:
       contents: write
     steps:
@@ -19,6 +19,18 @@ jobs:
 
       - name: Install XcodeGen + create-dmg
         run: brew install xcodegen create-dmg
+
+      - name: Prepare release metadata
+        run: |
+          MARKETING_VERSION="${{ inputs.version }}"
+          MARKETING_VERSION="${MARKETING_VERSION#v}"
+          echo "MARKETING_VERSION=$MARKETING_VERSION" >> "$GITHUB_ENV"
+          echo "CURRENT_PROJECT_VERSION=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          xcrun --sdk macosx --show-sdk-version
 
       - name: Generate Xcode project
         run: xcodegen generate
@@ -32,6 +44,9 @@ jobs:
             -configuration Release \
             -destination 'platform=macOS' \
             -derivedDataPath build \
+            MARKETING_VERSION="$MARKETING_VERSION" \
+            CURRENT_PROJECT_VERSION="$CURRENT_PROJECT_VERSION" \
+            ONLY_ACTIVE_ARCH=NO \
             CODE_SIGN_IDENTITY=- \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \

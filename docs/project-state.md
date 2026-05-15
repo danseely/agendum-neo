@@ -16,9 +16,9 @@ Align Agendum Neo with macOS Tahoe expectations from issue #5 through a focused 
 - WWDC25 "Build a SwiftUI app with the new design": https://developer.apple.com/videos/play/wwdc2025/323
 
 ## Current State
-- Branch: codex/unified-tahoe-window
-- Done: Moved top-level namespace and refresh controls into a system toolbar; moved sync/error status into a bottom safe-area bar surface; replaced fixed-width table-like rows with adaptive two-line rows; added standard sign-in unavailable content with a working post-login refresh path; kept XcodeGen deployment metadata on macOS 15 for CI runner compatibility.
-- In progress: Draft PR #24 adds explicit unified toolbar window styling for system-owned Tahoe window curvature.
+- Branch: codex/release-build-tahoe-sdk
+- Done: Moved top-level namespace and refresh controls into a system toolbar; moved sync/error status into a bottom safe-area bar surface; replaced fixed-width table-like rows with adaptive two-line rows; added standard sign-in unavailable content with a working post-login refresh path; kept XcodeGen deployment metadata on macOS 15 for CI runner compatibility; merged PR #24 to use unified toolbar window styling for system-owned Tahoe window curvature.
+- In progress: Fix release workflow so downloadable DMGs are built with the macOS 26 SDK and tag-derived bundle metadata.
 - Blocked: none.
 
 ## Decisions
@@ -26,6 +26,7 @@ Align Agendum Neo with macOS Tahoe expectations from issue #5 through a focused 
 - 2026-05-15: Decision: Update `project.yml` from macOS 15.0 to macOS 26.0. Reason: README and issue target Tahoe/macOS 26, and local Xcode 26.5 validates the SDK target. Impact: The project now requires macOS 26 at build metadata level. Plan change: no.
 - 2026-05-15: Decision: Revert `project.yml` deployment target from macOS 26.0 to macOS 15.0. Reason: PR #11 CI runs on macOS 15.7.4 and cannot test a macOS 26.0 test bundle. Impact: Tahoe UI alignment remains source-level and standard-control based while preserving current CI compatibility. Plan change: yes.
 - 2026-05-15: Decision: Make the primary `WindowGroup` explicitly use `.windowToolbarStyle(.unified)`. Reason: Apple’s Tahoe window guidance gives toolbar windows the larger, softer system corner radius and warns against custom window chrome. Impact: The app opts into the standard unified toolbar window shape while preserving macOS 15 deployment compatibility. Plan change: no.
+- 2026-05-15: Decision: Pin the Release workflow to the `macos-26` GitHub Actions runner and stamp release builds with tag-derived `MARKETING_VERSION`. Reason: The v0.2.3 DMG was built by `macos-latest` with Xcode 16 / macOS 15.5 SDK, while the locally verified Tahoe window behavior came from Xcode 26 / macOS 26.5 SDK. Impact: Future downloadable DMGs should match the Tahoe-window local build and report the release tag version in Finder metadata. Plan change: yes.
 
 ## Drift
 - Approved deviation: deployment target remains macOS 15.0 to keep CI green, despite Tahoe being the design alignment goal.
@@ -39,8 +40,11 @@ Align Agendum Neo with macOS Tahoe expectations from issue #5 through a focused 
 - 2026-05-15: After restoring macOS 15.0 deployment metadata, `xcodebuild -project AgendumNeo.xcodeproj -scheme AgendumNeo -destination 'platform=macOS' test` succeeded with 5 Swift Testing tests passing.
 - 2026-05-15: After setting the primary `WindowGroup` to `.windowToolbarStyle(.unified)`, `xcodebuild -project AgendumNeo.xcodeproj -scheme AgendumNeo -destination 'platform=macOS' test` succeeded with 21 Swift Testing tests passing.
 - 2026-05-15: Before opening the window-style PR, `xcodebuild -project AgendumNeo.xcodeproj -scheme AgendumNeo -configuration Debug -destination 'platform=macOS' build` succeeded.
+- 2026-05-15: Release troubleshooting found v0.2.3 DMG bundle metadata `DTSDKName = macosx15.5`, while the locally approved build had `DTSDKName = macosx26.5`.
+- 2026-05-15: Local Release workflow-equivalent build with `MARKETING_VERSION=0.2.4 CURRENT_PROJECT_VERSION=999 ONLY_ACTIVE_ARCH=NO` succeeded and produced a universal app with `DTSDKName = macosx26.5`.
+- 2026-05-15: `.github/workflows/release.yml` parsed successfully as YAML after the macOS 26 runner and version-stamping edits.
 
 ## Handoff / Next Actions
-1. Recheck PR #24 CI.
-2. Visually inspect the built app window against Safari on Tahoe.
+1. Open PR for the release workflow SDK/version fix.
+2. After merge, cut a new release and verify the DMG bundle reports `DTSDKName = macosx26.*`.
 3. Do not merge unless explicitly asked.
