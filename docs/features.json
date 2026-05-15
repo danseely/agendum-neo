@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "project": "agendum-neo",
+  "updated_at": "2026-05-15",
+  "active_goal": "Focused Tahoe/macOS modern UI alignment pass for issue #5",
+  "features": [
+    {
+      "id": "system-chrome",
+      "title": "Use system-provided macOS chrome for primary controls and status",
+      "status": "passed",
+      "priority": "must",
+      "evidence": "AgendumNeo/Views/RootView.swift uses SwiftUI toolbar content for namespace and refresh controls, plus a bottom safeAreaInset with .bar background. AgendumNeo/AppModel.swift reloads namespaces when refresh is invoked before an active namespace exists. Build and test succeeded on 2026-05-15.",
+      "notes": "Matches Apple guidance to rely on standard controls for the new design rather than custom content-layer glass."
+    },
+    {
+      "id": "adaptive-rows",
+      "title": "Make inbox rows fit modern compact macOS windows",
+      "status": "passed",
+      "priority": "must",
+      "evidence": "AgendumNeo/Views/ItemRow.swift replaces fixed column widths with adaptive title/metadata rows. Build and test succeeded on 2026-05-15.",
+      "notes": "Keeps the inbox usable in the existing small window and menu-bar window sizes."
+    },
+    {
+      "id": "tahoe-target",
+      "title": "Align project metadata with macOS Tahoe requirement",
+      "status": "passed",
+      "priority": "must",
+      "evidence": "project.yml now sets deploymentTarget.macOS and MACOSX_DEPLOYMENT_TARGET to 26.0; xcodebuild used MacOSX26.5.sdk successfully.",
+      "notes": "README already listed macOS 26 and Xcode 26 requirements."
+    }
+  ]
+}
