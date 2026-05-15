@@ -25,10 +25,25 @@ final class AppModel {
     func bootstrap() async {
         guard !didBootstrap else { return }
         didBootstrap = true
+        if DemoData.isEnabled {
+            loadDemoState()
+            return
+        }
         await loadNamespaces()
         if let active = activeNamespace {
             sync.start(namespace: active)
         }
+    }
+
+    private func loadDemoState() {
+        namespaces = DemoData.namespaces
+        let chosen = namespaces.first(where: { $0.kind == .user }) ?? namespaces.first
+        activeNamespace = chosen
+        if let chosen {
+            snapshot = DemoData.snapshot(for: chosen)
+            lastSyncedAt = Date()
+        }
+        lastError = nil
     }
 
     func loadNamespaces() async {
@@ -74,6 +89,12 @@ final class AppModel {
     func selectNamespace(_ namespace: Namespace) {
         guard namespace != activeNamespace else { return }
         activeNamespace = namespace
+        if DemoData.isEnabled {
+            snapshot = DemoData.snapshot(for: namespace)
+            lastSyncedAt = Date()
+            lastError = nil
+            return
+        }
         defaults.set(namespace.id, forKey: Self.selectedNamespaceKey)
         snapshot = nil
         lastSyncedAt = nil
@@ -82,6 +103,13 @@ final class AppModel {
     }
 
     func refresh() async {
+        if DemoData.isEnabled {
+            if let ns = activeNamespace {
+                snapshot = DemoData.snapshot(for: ns)
+                lastSyncedAt = Date()
+            }
+            return
+        }
         guard let ns = activeNamespace else {
             await loadNamespaces()
             if let activeNamespace {

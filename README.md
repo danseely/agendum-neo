@@ -15,6 +15,8 @@ Items are grouped per section and scoped to the GitHub namespace (your user or o
 
 Authentication piggybacks on the local [`gh` CLI](https://cli.github.com/) — there's no separate login. The app shells out to `gh auth token` to fetch the active token without disturbing `gh`'s active account.
 
+![Screenshot of Agendum Neo showing the three inbox sections — authored PRs, review requests, and assigned issues — with color-coded status pills](Resources/screenshot.png)
+
 ## Requirements
 
 - macOS 26 (Tahoe)
