@@ -55,12 +55,12 @@ struct PRRowView: View {
         switch kind {
         case .authored:
             switch pr.authoredStatus {
-            case .open: return .gray
-            case .waitingForReview: return .orange
-            case .reviewReceived: return .green
+            case .open: return StatusPalette.open
+            case .waitingForReview: return StatusPalette.waitingForReview
+            case .reviewReceived: return StatusPalette.reviewReceived
             }
         case .reviewRequested:
-            return .orange
+            return StatusPalette.reviewRequested
         }
     }
 }
@@ -94,9 +94,28 @@ struct IssueRowView: View {
 
     private var statusColor: Color {
         switch issue.status(viewerLogin: viewerLogin) {
-        case .open: return .gray
-        case .assignedToYou: return .indigo
+        case .open: return StatusPalette.open
+        case .assignedToYou: return StatusPalette.assignedToYou
         }
+    }
+}
+
+private enum StatusPalette {
+    static let open               = Color(hex: 0x60a5fa)
+    static let waitingForReview   = Color(hex: 0xffaa00)
+    static let reviewReceived     = Color(hex: 0xf59e0b)
+    static let reviewRequested    = Color(hex: 0xa78bfa)
+    static let assignedToYou      = Color(hex: 0xa78bfa)
+}
+
+private extension Color {
+    init(hex: Int) {
+        self.init(
+            .sRGB,
+            red:   Double((hex >> 16) & 0xff) / 255,
+            green: Double((hex >>  8) & 0xff) / 255,
+            blue:  Double( hex        & 0xff) / 255
+        )
     }
 }
 
