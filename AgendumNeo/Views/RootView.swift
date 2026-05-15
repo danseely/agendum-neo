@@ -199,13 +199,11 @@ struct RootView: View {
             }
 
             if let synced = app.lastSyncedAt {
-                HStack(spacing: 4) {
-                    Text("Synced")
-                    Text(synced, style: .relative)
-                    Text("ago")
+                TimelineView(.periodic(from: synced, by: 30)) { context in
+                    Text(SyncStatusLabel.text(synced: synced, now: context.date))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .font(.caption)
-                .foregroundStyle(.secondary)
             } else {
                 Text("Not yet synced")
                     .font(.caption)
