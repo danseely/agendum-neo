@@ -11,6 +11,7 @@ final class AppModel {
     var lastError: String?
     var isLoading: Bool = false
     var lastSyncedAt: Date?
+    var hasCompletedFirstSync: Bool = false
 
     @ObservationIgnored private var sync: SyncEngine!
     @ObservationIgnored private var didBootstrap = false
@@ -44,6 +45,7 @@ final class AppModel {
             lastSyncedAt = Date()
         }
         lastError = nil
+        hasCompletedFirstSync = true
     }
 
     func loadNamespaces() async {
@@ -53,6 +55,7 @@ final class AppModel {
                 self.namespaces = []
                 self.activeNamespace = nil
                 self.lastError = "No authenticated `gh` account found. Run `gh auth login`."
+                self.hasCompletedFirstSync = true
                 return
             }
 
@@ -83,6 +86,7 @@ final class AppModel {
             } else {
                 self.lastError = String(describing: error)
             }
+            self.hasCompletedFirstSync = true
         }
     }
 

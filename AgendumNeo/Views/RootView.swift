@@ -6,14 +6,24 @@ enum InboxItemID: Hashable {
 }
 
 struct RootView: View {
+    enum Presentation {
+        case window
+        case menuBar
+    }
+
     @Environment(AppModel.self) private var app
     @Environment(\.openURL) private var openURL
 
     @State private var selection: InboxItemID?
+    @State private var lockedIdealHeight: CGFloat?
+
+    var presentation: Presentation = .window
 
     var body: some View {
         Group {
-            if app.namespaces.isEmpty {
+            if showLoadingScreen {
+                loadingContent
+            } else if app.namespaces.isEmpty {
                 unavailableContent
             } else {
                 inboxList
@@ -23,7 +33,7 @@ struct RootView: View {
             minWidth: 620,
             idealWidth: 720,
             minHeight: 320,
-            idealHeight: 520
+            idealHeight: currentIdealHeight
         )
         .toolbar { toolbarContent }
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -32,6 +42,81 @@ struct RootView: View {
                 .padding(.vertical, 6)
                 .background(.bar)
         }
+        .onChange(of: app.hasCompletedFirstSync, initial: true) { _, completed in
+            // Lock the ideal height in once, on first-sync completion. After
+            // this, refresh-driven snapshot changes won't yank the window
+            // size; the user controls it from the resize grip.
+            guard presentation == .window, lockedIdealHeight == nil else { return }
+            if completed {
+                lockedIdealHeight = computeIdealContentHeight()
+            }
+        }
+    }
+
+    private var currentIdealHeight: CGFloat {
+        if presentation == .menuBar { return 520 }
+        return lockedIdealHeight ?? loadingIdealHeight
+    }
+
+    private var loadingIdealHeight: CGFloat { 320 }
+
+    // MARK: - First-sync gating / sizing
+
+    private var showLoadingScreen: Bool {
+        // Before the first sync completes, show a blank loading screen instead
+        // of empty section headers or the "sign-in required" empty state.
+        !app.hasCompletedFirstSync && app.lastError == nil
+    }
+
+    private var loadingContent: some View {
+        ZStack {
+            Color(NSColor.windowBackgroundColor)
+                .ignoresSafeArea()
+            VStack(spacing: 8) {
+                ProgressView()
+                    .controlSize(.regular)
+                Text("Loading...")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Compute the window's ideal content height from the current snapshot.
+    /// With `.windowResizability(.contentSize)` the `WindowGroup` follows this
+    /// value, so we apply it once on first-sync completion to grow the window
+    /// to fit the loaded data. Capped at 80% of the screen's visible height.
+    private func computeIdealContentHeight() -> CGFloat {
+        // Estimated row metrics. These are deliberate over-estimates so we
+        // don't clip rows; if too tall, the user can shrink the window.
+        let rowHeight: CGFloat = 30
+        let sectionHeaderHeight: CGFloat = 34
+        let sectionSpacing: CGFloat = 12
+        let toolbarPadding: CGFloat = 52
+        let footerPadding: CGFloat = 40
+        let listVerticalPadding: CGFloat = 16
+
+        let authored = app.snapshot?.authoredPRs.count ?? 0
+        let reviews = app.snapshot?.reviewRequestedPRs.count ?? 0
+        let issues = app.snapshot?.assignedIssues.count ?? 0
+
+        // Each section renders at least one row ("No PRs"/"No issues")
+        // when its body is empty, so floor each section count at 1.
+        let totalRows = max(authored, 1) + max(reviews, 1) + max(issues, 1)
+
+        let contentHeight =
+            CGFloat(totalRows) * rowHeight
+            + 3 * sectionHeaderHeight
+            + 2 * sectionSpacing
+            + listVerticalPadding
+            + toolbarPadding
+            + footerPadding
+
+        let screenHeight = NSScreen.main?.visibleFrame.height ?? 800
+        let cap = screenHeight * 0.8
+
+        return min(max(contentHeight, 320), cap)
     }
 
     // MARK: - Toolbar
