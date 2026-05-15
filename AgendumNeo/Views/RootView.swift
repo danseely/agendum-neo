@@ -12,38 +12,34 @@ struct RootView: View {
     @State private var selection: InboxItemID?
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-
-            Divider()
-
-            inboxList
-
-            Divider()
-
-            footer
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
+        Group {
+            if app.namespaces.isEmpty {
+                unavailableContent
+            } else {
+                inboxList
+            }
         }
         .frame(
             minWidth: 360,
-            idealWidth: 420,
+            idealWidth: 440,
             minHeight: 320,
             idealHeight: 520
         )
+        .toolbar { toolbarContent }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            footer
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(.bar)
+        }
     }
 
-    // MARK: - Header
+    // MARK: - Toolbar
 
-    private var header: some View {
-        HStack(spacing: 8) {
-            if app.namespaces.isEmpty {
-                Text("Not signed in. Run `gh auth login`.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            } else {
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .navigation) {
+            if !app.namespaces.isEmpty {
                 Picker("Namespace", selection: namespacePickerBinding) {
                     ForEach(app.namespaces) { ns in
                         Label {
@@ -56,13 +52,10 @@ struct RootView: View {
                 }
                 .pickerStyle(.menu)
                 .labelsHidden()
-                .fixedSize()
             }
+        }
 
-            Spacer(minLength: 0)
-                .contentShape(.rect)
-                .onTapGesture { selection = nil }
-
+        ToolbarItemGroup(placement: .primaryAction) {
             if app.isLoading {
                 ProgressView()
                     .controlSize(.small)
@@ -73,7 +66,6 @@ struct RootView: View {
             } label: {
                 Image(systemName: "arrow.clockwise")
             }
-            .buttonStyle(.borderless)
             .disabled(app.isLoading)
             .help("Refresh")
         }
@@ -90,6 +82,21 @@ struct RootView: View {
         )
     }
 
+    private var unavailableContent: some View {
+        ContentUnavailableView {
+            Label("GitHub Sign-In Required", systemImage: "person.crop.circle.badge.exclamationmark")
+        } description: {
+            Text("Run `gh auth login` and refresh Agendum Neo.")
+        } actions: {
+            Button {
+                Task { await app.refresh() }
+            } label: {
+                Label("Refresh", systemImage: "arrow.clockwise")
+            }
+            .disabled(app.isLoading)
+        }
+    }
+
     // MARK: - List
 
     private var inboxList: some View {
@@ -102,6 +109,7 @@ struct RootView: View {
                     ForEach(authoredPRs) { pr in
                         PRRowView(pr: pr)
                             .tag(InboxItemID.pr(pr.id))
+                            .padding(.vertical, 3)
                             .contextMenu {
                                 Button("Open in Browser") { openURL(pr.url) }
                             }
@@ -119,6 +127,7 @@ struct RootView: View {
                     ForEach(reviewRequestedPRs) { pr in
                         PRRowView(pr: pr)
                             .tag(InboxItemID.pr(pr.id))
+                            .padding(.vertical, 3)
                             .contextMenu {
                                 Button("Open in Browser") { openURL(pr.url) }
                             }
@@ -136,6 +145,7 @@ struct RootView: View {
                     ForEach(assignedIssues) { issue in
                         IssueRowView(issue: issue)
                             .tag(InboxItemID.issue(issue.id))
+                            .padding(.vertical, 3)
                             .contextMenu {
                                 Button("Open in Browser") { openURL(issue.url) }
                             }

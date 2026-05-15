@@ -82,7 +82,13 @@ final class AppModel {
     }
 
     func refresh() async {
-        guard let ns = activeNamespace else { return }
+        guard let ns = activeNamespace else {
+            await loadNamespaces()
+            if let activeNamespace {
+                sync.start(namespace: activeNamespace)
+            }
+            return
+        }
         await sync.fetchOnce(namespace: ns)
     }
 
