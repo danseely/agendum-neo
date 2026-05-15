@@ -103,9 +103,9 @@ struct IssueRowView: View {
 private enum StatusPalette {
     static let open               = Color(hex: 0x60a5fa)
     static let waitingForReview   = Color(hex: 0xffaa00)
-    static let reviewReceived     = Color(hex: 0xf59e0b)
+    static let reviewReceived     = Color(hex: 0x4ade80)
     static let reviewRequested    = Color(hex: 0xa78bfa)
-    static let assignedToYou      = Color(hex: 0xa78bfa)
+    static let assignedToYou      = Color(hex: 0x2dd4bf)
 }
 
 private extension Color {
