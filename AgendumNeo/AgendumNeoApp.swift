@@ -10,6 +10,7 @@ struct AgendumNeoApp: App {
                 .environment(app)
                 .task { await app.bootstrap() }
         }
+        .windowToolbarStyle(.unified)
         .windowResizability(.contentSize)
         .commands {
             CommandGroup(replacing: .newItem) {}

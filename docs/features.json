@@ -9,8 +9,8 @@
       "title": "Use system-provided macOS chrome for primary controls and status",
       "status": "passed",
       "priority": "must",
-      "evidence": "AgendumNeo/Views/RootView.swift uses SwiftUI toolbar content for namespace and refresh controls, plus a bottom safeAreaInset with .bar background. AgendumNeo/AppModel.swift reloads namespaces when refresh is invoked before an active namespace exists. Build and test succeeded on 2026-05-15.",
-      "notes": "Matches Apple guidance to rely on standard controls for the new design rather than custom content-layer glass."
+      "evidence": "AgendumNeo/AgendumNeoApp.swift configures the main WindowGroup with .windowToolbarStyle(.unified). AgendumNeo/Views/RootView.swift uses SwiftUI toolbar content for namespace and refresh controls, plus a bottom safeAreaInset with .bar background. AgendumNeo/AppModel.swift reloads namespaces when refresh is invoked before an active namespace exists. Build and test succeeded on 2026-05-15.",
+      "notes": "Matches Apple guidance to rely on standard toolbar windows and controls for the new design rather than custom content-layer glass or manual corner rounding."
     },
     {
       "id": "adaptive-rows",
