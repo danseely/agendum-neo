@@ -24,6 +24,14 @@ enum GHCLIError: Error, CustomStringConvertible, LocalizedError, Sendable {
 struct GHCLI {
     static let ghSearchPath = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
 
+    static func ghProcessEnvironment(
+        base: [String: String] = ProcessInfo.processInfo.environment
+    ) -> [String: String] {
+        var environment = base
+        environment["PATH"] = ghSearchPath
+        return environment
+    }
+
     static func listAccounts() async throws -> [GHAccount] {
         let result = try await run(arguments: ["auth", "status", "--json", "hosts"])
         guard result.exitCode == 0 else {
@@ -64,7 +72,7 @@ struct GHCLI {
                 let process = Process()
                 process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
                 process.arguments = ["gh"] + args
-                process.environment = ["PATH": ghSearchPath]
+                process.environment = ghProcessEnvironment()
 
                 let outPipe = Pipe()
                 let errPipe = Pipe()
