@@ -29,7 +29,7 @@ enum Queries {
             title
             url
             updatedAt
-            author { login }
+            author { ...authorFields }
             repository { nameWithOwner }
           }
         }
@@ -44,10 +44,17 @@ enum Queries {
       url
       updatedAt
       isDraft
-      author { login }
+      author { ...authorFields }
       repository { nameWithOwner }
       reviewDecision
       reviews(first: 1) { totalCount }
+    }
+
+    fragment authorFields on Actor {
+      login
+      ... on User {
+        name
+      }
     }
     """
 }
