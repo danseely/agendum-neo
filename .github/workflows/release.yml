@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release tag (e.g. v0.1.0)'
+        required: true
+        type: string
+
+jobs:
+  build-dmg:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen + create-dmg
+        run: brew install xcodegen create-dmg
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build (Release)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project AgendumNeo.xcodeproj \
+            -scheme AgendumNeo \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY=- \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Stage app for DMG
+        run: |
+          mkdir -p dmg-staging
+          cp -R "build/Build/Products/Release/Agendum Neo.app" dmg-staging/
+
+      - name: Create DMG
+        run: |
+          DMG_NAME="AgendumNeo-${{ inputs.version }}.dmg"
+          create-dmg \
+            --volname "Agendum Neo ${{ inputs.version }}" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "Agendum Neo.app" 175 190 \
+            --hide-extension "Agendum Neo.app" \
+            --app-drop-link 425 190 \
+            --no-internet-enable \
+            "$DMG_NAME" \
+            dmg-staging/
+          echo "DMG_NAME=$DMG_NAME" >> "$GITHUB_ENV"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ inputs.version }}" \
+            "$DMG_NAME" \
+            --title "${{ inputs.version }}" \
+            --generate-notes

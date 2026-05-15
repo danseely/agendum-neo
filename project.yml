@@ -1,0 +1,71 @@
+name: AgendumNeo
+options:
+  bundleIdPrefix: net.danseely
+  deploymentTarget:
+    macOS: "26.0"
+  developmentLanguage: en
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+  defaultConfig: Debug
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    SWIFT_UPCOMING_FEATURE_EXISTENTIAL_ANY: YES
+    MACOSX_DEPLOYMENT_TARGET: "26.0"
+    ENABLE_HARDENED_RUNTIME: YES
+    CODE_SIGN_STYLE: Automatic
+    CODE_SIGN_IDENTITY: "-"
+    DEVELOPMENT_TEAM: ""
+    DEAD_CODE_STRIPPING: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+
+targets:
+  AgendumNeo:
+    type: application
+    platform: macOS
+    sources:
+      - path: AgendumNeo
+    resources:
+      - path: AgendumNeo/Assets.xcassets
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: net.danseely.AgendumNeo
+        PRODUCT_NAME: "Agendum Neo"
+        PRODUCT_MODULE_NAME: AgendumNeo
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.developer-tools
+        INFOPLIST_KEY_NSHumanReadableCopyright: ""
+        INFOPLIST_KEY_LSUIElement: NO
+        CODE_SIGN_ENTITLEMENTS: AgendumNeo/AgendumNeo.entitlements
+        ENABLE_APP_SANDBOX: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        COMBINE_HIDPI_IMAGES: YES
+
+  AgendumNeoTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: AgendumNeoTests
+    dependencies:
+      - target: AgendumNeo
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: net.danseely.AgendumNeoTests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Agendum Neo.app/Contents/MacOS/Agendum Neo"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+
+schemes:
+  AgendumNeo:
+    build:
+      targets:
+        AgendumNeo: all
+        AgendumNeoTests: [test]
+    test:
+      targets:
+        - AgendumNeoTests

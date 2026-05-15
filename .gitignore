@@ -1,0 +1,25 @@
+# macOS
+.DS_Store
+
+# Build artifacts
+build/
+DerivedData/
+
+# Generated Xcode project (source of truth is project.yml)
+*.xcodeproj/
+
+# Xcode user data
+xcuserdata/
+*.xcuserstate
+*.xcworkspace/
+
+# Swift Package Manager
+.swiftpm/
+.build/
+
+# DMG output
+*.dmg
+dmg-staging/
+
+# Local Claude Code settings
+.claude/
