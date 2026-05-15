@@ -20,8 +20,8 @@ struct RootView: View {
             }
         }
         .frame(
-            minWidth: 360,
-            idealWidth: 440,
+            minWidth: 620,
+            idealWidth: 720,
             minHeight: 320,
             idealHeight: 520
         )
@@ -107,7 +107,7 @@ struct RootView: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(authoredPRs) { pr in
-                        PRRowView(pr: pr)
+                        PRRowView(pr: pr, kind: .authored)
                             .tag(InboxItemID.pr(pr.id))
                             .padding(.vertical, 3)
                             .contextMenu {
@@ -125,7 +125,7 @@ struct RootView: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(reviewRequestedPRs) { pr in
-                        PRRowView(pr: pr)
+                        PRRowView(pr: pr, kind: .reviewRequested)
                             .tag(InboxItemID.pr(pr.id))
                             .padding(.vertical, 3)
                             .contextMenu {
@@ -143,7 +143,7 @@ struct RootView: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(assignedIssues) { issue in
-                        IssueRowView(issue: issue)
+                        IssueRowView(issue: issue, viewerLogin: viewerLogin)
                             .tag(InboxItemID.issue(issue.id))
                             .padding(.vertical, 3)
                             .contextMenu {
@@ -229,6 +229,10 @@ struct RootView: View {
 
     private var assignedIssues: [Issue] {
         app.snapshot?.assignedIssues ?? []
+    }
+
+    private var viewerLogin: String? {
+        app.activeNamespace?.accountLogin
     }
 
     // MARK: - Selection helpers

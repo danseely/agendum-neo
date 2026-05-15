@@ -17,12 +17,21 @@ struct ModelTests {
         #expect(ns.displayName == "adadaptedinc")
     }
 
-    @Test("ReviewState round-trips through JSON")
-    func reviewStateCodable() throws {
-        let states: [ReviewState] = [.waiting, .approved, .changesRequested, .commented]
-        let encoded = try JSONEncoder().encode(states)
-        let decoded = try JSONDecoder().decode([ReviewState].self, from: encoded)
-        #expect(decoded == states)
+    @Test("Authored PR status reflects reviewers and reviews")
+    func authoredPRStatusDerivation() {
+        #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 0, reviewCount: 0) == .open)
+        #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 2, reviewCount: 0) == .waitingForReview)
+        #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 1, reviewCount: 3) == .reviewReceived)
+        #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 0, reviewCount: 1) == .reviewReceived)
+    }
+
+    @Test("Issue status distinguishes authored from assigned")
+    func issueStatusDerivation() {
+        #expect(Issue.deriveStatus(authorLogin: "danseely", viewerLogin: "danseely") == .open)
+        #expect(Issue.deriveStatus(authorLogin: "DanSeely", viewerLogin: "danseely") == .open)
+        #expect(Issue.deriveStatus(authorLogin: "someoneElse", viewerLogin: "danseely") == .assignedToYou)
+        #expect(Issue.deriveStatus(authorLogin: "anyone", viewerLogin: nil) == .assignedToYou)
+        #expect(Issue.deriveStatus(authorLogin: "anyone", viewerLogin: "") == .assignedToYou)
     }
 
     @Test("Author display uses first GitHub display-name token")

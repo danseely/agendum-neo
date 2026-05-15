@@ -1,18 +1,37 @@
 import SwiftUI
 
+enum RowColumns {
+    static let status: CGFloat = 130
+    static let author: CGFloat = 90
+    static let repo: CGFloat = 130
+    static let number: CGFloat = 56
+    static let spacing: CGFloat = 12
+}
+
 struct PRRowView: View {
     let pr: PullRequest
+    let kind: Kind
+
+    enum Kind {
+        case authored
+        case reviewRequested
+    }
 
     var body: some View {
         InboxRow(
-            title: pr.title,
-            metadata: "\(pr.author) - \(repoShortName(pr.repository))",
             number: pr.number,
             url: pr.url,
+            author: pr.author,
+            repository: pr.repository,
             status: StatusPill(text: statusText, color: statusColor)
         ) {
-            if pr.isDraft {
-                DraftBadge()
+            HStack(spacing: 6) {
+                Text(pr.title)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                if pr.isDraft {
+                    DraftBadge()
+                }
             }
         }
         .contentShape(Rectangle())
@@ -20,111 +39,136 @@ struct PRRowView: View {
     }
 
     private var statusText: String {
-        switch pr.reviewState {
-        case .waiting: return "Waiting"
-        case .approved: return "Approved"
-        case .changesRequested: return "Changes"
-        case .commented: return "Commented"
+        switch kind {
+        case .authored:
+            switch pr.authoredStatus {
+            case .open: return "Open"
+            case .waitingForReview: return "Waiting for review"
+            case .reviewReceived: return "Review received"
+            }
+        case .reviewRequested:
+            return "Review requested"
         }
     }
 
     private var statusColor: Color {
-        switch pr.reviewState {
-        case .waiting: return .gray
-        case .approved: return .green
-        case .changesRequested: return .red
-        case .commented: return .yellow
+        switch kind {
+        case .authored:
+            switch pr.authoredStatus {
+            case .open: return StatusPalette.open
+            case .waitingForReview: return StatusPalette.waitingForReview
+            case .reviewReceived: return StatusPalette.reviewReceived
+            }
+        case .reviewRequested:
+            return StatusPalette.reviewRequested
         }
     }
 }
 
 struct IssueRowView: View {
     let issue: Issue
+    let viewerLogin: String?
 
     var body: some View {
         InboxRow(
-            title: issue.title,
-            metadata: "\(issue.author) - \(repoShortName(issue.repository))",
             number: issue.number,
             url: issue.url,
-            status: StatusPill(text: "Open", color: .green)
-        )
+            author: issue.author,
+            repository: issue.repository,
+            status: StatusPill(text: statusText, color: statusColor)
+        ) {
+            Text(issue.title)
+                .lineLimit(1)
+                .truncationMode(.tail)
+        }
         .contentShape(Rectangle())
         .help(issue.title)
     }
+
+    private var statusText: String {
+        switch issue.status(viewerLogin: viewerLogin) {
+        case .open: return "Open"
+        case .assignedToYou: return "Assigned to you"
+        }
+    }
+
+    private var statusColor: Color {
+        switch issue.status(viewerLogin: viewerLogin) {
+        case .open: return StatusPalette.open
+        case .assignedToYou: return StatusPalette.assignedToYou
+        }
+    }
 }
 
-private struct InboxRow<Status: View, Accessory: View>: View {
-    let title: String
-    let metadata: String
+private enum StatusPalette {
+    static let open               = Color(hex: 0x60a5fa)
+    static let waitingForReview   = Color(hex: 0xffaa00)
+    static let reviewReceived     = Color(hex: 0x4ade80)
+    static let reviewRequested    = Color(hex: 0xa78bfa)
+    static let assignedToYou      = Color(hex: 0x2dd4bf)
+}
+
+private extension Color {
+    init(hex: Int) {
+        self.init(
+            .sRGB,
+            red:   Double((hex >> 16) & 0xff) / 255,
+            green: Double((hex >>  8) & 0xff) / 255,
+            blue:  Double( hex        & 0xff) / 255
+        )
+    }
+}
+
+private struct InboxRow<Status: View, Title: View>: View {
     let number: Int
     let url: URL
+    let author: String
+    let repository: String
     let status: Status
-    let accessory: Accessory
+    let title: Title
 
     init(
-        title: String,
-        metadata: String,
         number: Int,
         url: URL,
+        author: String,
+        repository: String,
         status: Status,
-        @ViewBuilder accessory: () -> Accessory
+        @ViewBuilder title: () -> Title
     ) {
-        self.title = title
-        self.metadata = metadata
         self.number = number
         self.url = url
+        self.author = author
+        self.repository = repository
         self.status = status
-        self.accessory = accessory()
+        self.title = title()
     }
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
+        HStack(spacing: RowColumns.spacing) {
             status
-                .frame(width: 86, alignment: .leading)
+                .frame(width: RowColumns.status, alignment: .leading)
 
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 6) {
-                    Text(title)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+            title
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-                    accessory
-                }
+            Text(author)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .foregroundStyle(.secondary)
+                .frame(width: RowColumns.author, alignment: .leading)
 
-                Text(metadata)
-                    .font(.caption)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            Text(repoShortName(repository))
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .foregroundStyle(.secondary)
+                .frame(width: RowColumns.repo, alignment: .leading)
 
             Link("#\(number)", destination: url)
                 .pointerStyle(.link)
                 .font(.callout)
                 .monospacedDigit()
                 .lineLimit(1)
-        }
-    }
-}
-
-private extension InboxRow where Accessory == EmptyView {
-    init(
-        title: String,
-        metadata: String,
-        number: Int,
-        url: URL,
-        status: Status
-    ) {
-        self.init(
-            title: title,
-            metadata: metadata,
-            number: number,
-            url: url,
-            status: status
-        ) {
-            EmptyView()
+                .frame(width: RowColumns.number, alignment: .trailing)
         }
     }
 }
@@ -151,6 +195,8 @@ private struct StatusPill: View {
             .padding(.vertical, 2)
             .background(Capsule().fill(color.opacity(0.18)))
             .foregroundStyle(color)
+            .lineLimit(1)
+            .truncationMode(.tail)
     }
 }
 
