@@ -11,11 +11,11 @@ struct ModelTests {
         let ns = Namespace(
             host: "github.com",
             accountLogin: "danseely",
-            owner: "adadaptedinc",
+            owner: "acme-corp",
             kind: .org
         )
-        #expect(ns.id == "github.com/danseely/adadaptedinc")
-        #expect(ns.displayName == "adadaptedinc")
+        #expect(ns.id == "github.com/danseely/acme-corp")
+        #expect(ns.displayName == "acme-corp")
     }
 
     @Test("Authored PR status reflects reviewers and reviews")
