@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release tag (e.g. v0.1.0)'
-        required: true
+        description: 'Release tag (e.g. v0.1.0). Leave empty to auto-compute from commits since the last tag.'
+        required: false
         type: string
 
 jobs:
@@ -14,18 +14,45 @@ jobs:
     permissions:
       contents: write
     steps:
-      # actions/checkout v6.0.2
+      # actions/checkout v6.0.2 — fetch full history + tags so the bump action can see them.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
 
       - name: Install XcodeGen + create-dmg
         run: brew install xcodegen create-dmg
 
+      # mathieudutour/github-tag-action v6.2 — reads conventional commits
+      # since the last tag and emits the next vX.Y.Z. Runs in dry-run so
+      # the tag is created later by `gh release create`.
+      - name: Compute next version
+        id: bump
+        if: ${{ inputs.version == '' }}
+        uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          default_bump: patch
+          tag_prefix: v
+          dry_run: true
+
+      - name: Resolve release tag
+        id: tag
+        run: |
+          if [[ -n "${{ inputs.version }}" ]]; then
+            TAG="${{ inputs.version }}"
+          else
+            TAG="${{ steps.bump.outputs.new_tag }}"
+          fi
+          echo "Resolved release tag: $TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
       - name: Prepare release metadata
         run: |
-          MARKETING_VERSION="${{ inputs.version }}"
+          MARKETING_VERSION="${{ steps.tag.outputs.tag }}"
           MARKETING_VERSION="${MARKETING_VERSION#v}"
           echo "MARKETING_VERSION=$MARKETING_VERSION" >> "$GITHUB_ENV"
           echo "CURRENT_PROJECT_VERSION=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=${{ steps.tag.outputs.tag }}" >> "$GITHUB_ENV"
 
       - name: Show toolchain
         run: |
@@ -59,9 +86,9 @@ jobs:
 
       - name: Create DMG
         run: |
-          DMG_NAME="AgendumNeo-${{ inputs.version }}.dmg"
+          DMG_NAME="AgendumNeo-${RELEASE_TAG}.dmg"
           create-dmg \
-            --volname "Agendum Neo ${{ inputs.version }}" \
+            --volname "Agendum Neo ${RELEASE_TAG}" \
             --window-pos 200 120 \
             --window-size 600 400 \
             --icon-size 100 \
@@ -77,7 +104,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "${{ inputs.version }}" \
+          gh release create "$RELEASE_TAG" \
             "$DMG_NAME" \
-            --title "${{ inputs.version }}" \
+            --title "$RELEASE_TAG" \
             --generate-notes
