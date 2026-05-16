@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import CoreGraphics
 
 @MainActor
 @Observable
@@ -13,6 +14,20 @@ final class AppModel {
     var lastSyncedAt: Date?
     var hasCompletedFirstSync: Bool = false
 
+    /// Global UI font-scale multiplier. Persisted in `UserDefaults` so the
+    /// user's preferred zoom level survives relaunch. Applied at the root
+    /// view via `.environment(\.uiFontScale, …)`.
+    var uiFontScale: CGFloat {
+        didSet {
+            let clamped = UIFontScale.clamp(uiFontScale)
+            if clamped != uiFontScale {
+                uiFontScale = clamped
+                return
+            }
+            defaults.set(Double(clamped), forKey: UIFontScale.defaultsKey)
+        }
+    }
+
     @ObservationIgnored private var sync: SyncEngine!
     @ObservationIgnored private var didBootstrap = false
     @ObservationIgnored private var tokensByAccount: [String: String] = [:]
@@ -20,7 +35,21 @@ final class AppModel {
     private static let selectedNamespaceKey = "AgendumNeo.selectedNamespaceID"
 
     init() {
+        let storedScale = UserDefaults.standard.object(forKey: UIFontScale.defaultsKey) as? Double
+        self.uiFontScale = UIFontScale.clamp(CGFloat(storedScale ?? Double(UIFontScale.actualSize)))
         self.sync = SyncEngine(model: self)
+    }
+
+    func zoomIn() {
+        uiFontScale = UIFontScale.zoomIn(uiFontScale)
+    }
+
+    func zoomOut() {
+        uiFontScale = UIFontScale.zoomOut(uiFontScale)
+    }
+
+    func resetZoom() {
+        uiFontScale = UIFontScale.actualSize
     }
 
     func bootstrap() async {
