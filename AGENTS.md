@@ -2,6 +2,10 @@
 
 Guidance for AI assistants working in this repo. The README covers what the app does and how to install it — this file covers the things you need to know to make changes without breaking conventions.
 
+## Pull main before starting work
+
+Always `git pull` (or rebase your branch on the latest `origin/main`) before starting a task. The release workflow auto-versions and ships from `main`, so stale local state can produce confusing pulls mid-work and PRs against an out-of-date base.
+
 ## Build & test
 
 ```sh

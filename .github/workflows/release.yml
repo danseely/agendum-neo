@@ -25,10 +25,19 @@ jobs:
       # mathieudutour/github-tag-action v6.2 — reads conventional commits
       # since the last tag and emits the next vX.Y.Z. Runs in dry-run so
       # the tag is created later by `gh release create`.
+      #
+      # Upstream is dormant and still declares `runs: using: "node20"`.
+      # FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 opts this step into Node 24 ahead
+      # of GitHub's 2026-06-02 forced migration so we validate compatibility
+      # under our control. Can be removed once upstream ships a Node 24
+      # release, or after 2026-09-16 when Node 20 is removed and Node 24
+      # becomes the default. See https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
       - name: Compute next version
         id: bump
         if: ${{ inputs.version == '' }}
         uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           default_bump: patch
