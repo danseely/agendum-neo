@@ -158,38 +158,20 @@ struct RootView: View {
             }
         }
 
-        ToolbarItem(placement: .principal) {
-            syncStatusLabel
-        }
+        ToolbarItemGroup(placement: .primaryAction) {
+            if app.isLoading {
+                ProgressView()
+                    .controlSize(.small)
+                    .padding(.leading, 6)
+            }
 
-        ToolbarItem(placement: .primaryAction) {
             Button {
                 Task { await app.refresh() }
             } label: {
-                if app.isLoading {
-                    ProgressView()
-                        .controlSize(.small)
-                } else {
-                    Image(systemName: "arrow.clockwise")
-                }
+                Image(systemName: "arrow.clockwise")
             }
             .disabled(app.isLoading)
             .help("Refresh")
-        }
-    }
-
-    @ViewBuilder
-    private var syncStatusLabel: some View {
-        if let synced = app.lastSyncedAt {
-            TimelineView(.periodic(from: synced, by: 30)) { context in
-                Text(SyncStatusLabel.text(synced: synced, now: context.date))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        } else {
-            Text("Not yet synced")
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
     }
 
