@@ -37,11 +37,17 @@ struct RootView: View {
             idealHeight: currentIdealHeight
         )
         .toolbar { toolbarContent }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            footer
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(.bar)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if let err = app.lastError {
+                Text(err)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(.bar)
+            }
         }
         // .scaleEffect is the SwiftUI primitive for browser-style zoom —
         // it scales the rendered view tree linearly, including text, icons,
@@ -156,6 +162,7 @@ struct RootView: View {
             if app.isLoading {
                 ProgressView()
                     .controlSize(.small)
+                    .padding(.leading, 6)
             }
 
             Button {
@@ -282,34 +289,6 @@ struct RootView: View {
         authoredPRs.map { .pr($0.id) }
         + reviewRequestedPRs.map { .pr($0.id) }
         + assignedIssues.map { .issue($0.id) }
-    }
-
-    // MARK: - Footer
-
-    private var footer: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            if let err = app.lastError {
-                Text(err)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .lineLimit(2)
-            }
-
-            if let synced = app.lastSyncedAt {
-                TimelineView(.periodic(from: synced, by: 30)) { context in
-                    Text(SyncStatusLabel.text(synced: synced, now: context.date))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            } else {
-                Text("Not yet synced")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(.rect)
-        .onTapGesture { selection = nil }
     }
 
     // MARK: - Derived data

@@ -140,6 +140,9 @@ final class AppModel {
 
     func refresh() async {
         if DemoData.isEnabled {
+            isLoading = true
+            defer { isLoading = false }
+            try? await Task.sleep(for: .seconds(4))
             if let ns = activeNamespace {
                 snapshot = DemoData.snapshot(for: ns)
                 lastSyncedAt = Date()
