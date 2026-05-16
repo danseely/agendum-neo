@@ -7,7 +7,7 @@ enum DemoData {
 
     static let namespaces: [Namespace] = [
         Namespace(host: "github.com", accountLogin: "danseely", owner: "danseely", kind: .user),
-        Namespace(host: "github.com", accountLogin: "danseely", owner: "adadaptedinc", kind: .org),
+        Namespace(host: "github.com", accountLogin: "danseely", owner: "acme-corp", kind: .org),
         Namespace(host: "github.com", accountLogin: "danseely", owner: "agendum-labs", kind: .org)
     ]
 
