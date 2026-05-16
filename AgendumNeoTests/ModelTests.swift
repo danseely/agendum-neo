@@ -152,6 +152,95 @@ struct AppModelLifecycleTests {
     }
 }
 
+@Suite("UI font scale")
+struct UIFontScaleTests {
+
+    @Test("Actual size is one and lives in the documented range")
+    func actualSizeIsCanonical() {
+        #expect(UIFontScale.actualSize == 1.0)
+        #expect(UIFontScale.minimum < UIFontScale.actualSize)
+        #expect(UIFontScale.actualSize < UIFontScale.maximum)
+    }
+
+    @Test("Zoom in adds one step from canonical points")
+    func zoomInStepsForward() {
+        #expect(approximately(UIFontScale.zoomIn(1.0), 1.1))
+        #expect(approximately(UIFontScale.zoomIn(0.7), 0.8))
+        #expect(approximately(UIFontScale.zoomIn(1.2), 1.3))
+    }
+
+    @Test("Zoom out subtracts one step from canonical points")
+    func zoomOutStepsBackward() {
+        #expect(approximately(UIFontScale.zoomOut(1.0), 0.9))
+        #expect(approximately(UIFontScale.zoomOut(1.6), 1.5))
+        #expect(approximately(UIFontScale.zoomOut(0.8), 0.7))
+    }
+
+    @Test("Zoom in clamps at the documented maximum")
+    func zoomInClampsAtMaximum() {
+        #expect(approximately(UIFontScale.zoomIn(UIFontScale.maximum), UIFontScale.maximum))
+        // One step above the cap also stays clamped.
+        #expect(approximately(UIFontScale.zoomIn(UIFontScale.maximum + 0.5), UIFontScale.maximum))
+    }
+
+    @Test("Zoom out clamps at the documented minimum")
+    func zoomOutClampsAtMinimum() {
+        #expect(approximately(UIFontScale.zoomOut(UIFontScale.minimum), UIFontScale.minimum))
+        // One step below the floor also stays clamped.
+        #expect(approximately(UIFontScale.zoomOut(UIFontScale.minimum - 0.5), UIFontScale.minimum))
+    }
+
+    @Test("Successive zoom-ins walk cleanly from minimum to maximum")
+    func successiveZoomInsHitMaximum() {
+        var scale = UIFontScale.minimum
+        // Ten steps of 0.1 take us from 0.7 to 1.6 inclusive (9 jumps + 1 extra clamp).
+        for _ in 0..<20 {
+            scale = UIFontScale.zoomIn(scale)
+        }
+        #expect(approximately(scale, UIFontScale.maximum))
+    }
+
+    @Test("Successive zoom-outs walk cleanly from maximum to minimum")
+    func successiveZoomOutsHitMinimum() {
+        var scale = UIFontScale.maximum
+        for _ in 0..<20 {
+            scale = UIFontScale.zoomOut(scale)
+        }
+        #expect(approximately(scale, UIFontScale.minimum))
+    }
+
+    @Test("Clamp snaps off-grid values to the nearest step")
+    func clampSnapsToStepGrid() {
+        // 1.03 rounds down to 1.0; 1.07 rounds up to 1.1.
+        #expect(approximately(UIFontScale.clamp(1.03), 1.0))
+        #expect(approximately(UIFontScale.clamp(1.07), 1.1))
+        // Off-grid values outside the range still clamp into [min, max].
+        #expect(approximately(UIFontScale.clamp(5.0), UIFontScale.maximum))
+        #expect(approximately(UIFontScale.clamp(0.1), UIFontScale.minimum))
+    }
+
+    @Test("isAtMaximum / isAtMinimum gate the menu commands")
+    func boundsReportingMatchesClamp() {
+        #expect(UIFontScale.isAtMaximum(UIFontScale.maximum))
+        #expect(UIFontScale.isAtMaximum(UIFontScale.maximum + 0.5))
+        #expect(!UIFontScale.isAtMaximum(UIFontScale.actualSize))
+
+        #expect(UIFontScale.isAtMinimum(UIFontScale.minimum))
+        #expect(UIFontScale.isAtMinimum(UIFontScale.minimum - 0.5))
+        #expect(!UIFontScale.isAtMinimum(UIFontScale.actualSize))
+    }
+
+    /// Floating-point comparison helper. The step grid is 0.1, so a
+    /// tolerance of 1e-9 catches arithmetic drift without false positives.
+    private func approximately(
+        _ lhs: CGFloat,
+        _ rhs: CGFloat,
+        tolerance: CGFloat = 1e-9
+    ) -> Bool {
+        abs(lhs - rhs) < tolerance
+    }
+}
+
 @Suite("Sync status label")
 struct SyncStatusLabelTests {
     private let synced = Date(timeIntervalSince1970: 1_700_000_000)

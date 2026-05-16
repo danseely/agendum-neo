@@ -13,6 +13,7 @@ struct RootView: View {
 
     @Environment(AppModel.self) private var app
     @Environment(\.openURL) private var openURL
+    @Environment(\.uiFontScale) private var uiFontScale
 
     @State private var selection: InboxItemID?
     @State private var lockedIdealHeight: CGFloat?
@@ -42,6 +43,7 @@ struct RootView: View {
                 .padding(.vertical, 6)
                 .background(.bar)
         }
+        .font(.system(size: NSFont.systemFontSize * uiFontScale))
         .onChange(of: app.hasCompletedFirstSync, initial: true) { _, completed in
             guard presentation == .window, lockedIdealHeight == nil, completed else { return }
             let target = computeIdealContentHeight()
