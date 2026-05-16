@@ -25,14 +25,6 @@ struct AgendumNeoApp: App {
                 Button("Zoom In") {
                     app.zoomIn()
                 }
-                .keyboardShortcut("=", modifiers: .command)
-                .disabled(UIFontScale.isAtMaximum(app.uiFontScale))
-
-                // Duplicate binding so `⌘+` (Shift+=) also works without
-                // requiring the user to release Shift.
-                Button("Zoom In") {
-                    app.zoomIn()
-                }
                 .keyboardShortcut("+", modifiers: .command)
                 .disabled(UIFontScale.isAtMaximum(app.uiFontScale))
 

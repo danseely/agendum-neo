@@ -43,7 +43,11 @@ struct RootView: View {
                 .padding(.vertical, 6)
                 .background(.bar)
         }
-        .dynamicTypeSize(UIFontScale.dynamicTypeSize(for: uiFontScale))
+        // .scaleEffect is the SwiftUI primitive for browser-style zoom —
+        // it scales the rendered view tree linearly, including text, icons,
+        // padding, and layout. .dynamicTypeSize on macOS doesn't reliably
+        // propagate through .font(.caption)/.headline overrides.
+        .scaleEffect(uiFontScale, anchor: .topLeading)
         .onChange(of: app.hasCompletedFirstSync, initial: true) { _, completed in
             guard presentation == .window, lockedIdealHeight == nil, completed else { return }
             let target = computeIdealContentHeight()

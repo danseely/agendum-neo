@@ -32,27 +32,6 @@ enum UIFontScale {
         return min(max(rounded, minimum), maximum)
     }
 
-    /// `DynamicTypeSize` that corresponds to the given scale multiplier.
-    /// Applied at the root view via `.dynamicTypeSize(...)` so descendant
-    /// `.font(.caption)` / `.callout` / `.headline` modifiers actually
-    /// participate in scaling instead of overriding it.
-    static func dynamicTypeSize(for scale: CGFloat) -> DynamicTypeSize {
-        let snapped = clamp(scale)
-        switch Int((snapped * 10).rounded()) {
-        case ...7: return .xSmall
-        case 8:    return .small
-        case 9:    return .medium
-        case 10:   return .large
-        case 11:   return .xLarge
-        case 12:   return .xxLarge
-        case 13:   return .xxxLarge
-        case 14:   return .accessibility1
-        case 15:   return .accessibility2
-        case 16...: return .accessibility3
-        default:   return .large
-        }
-    }
-
     /// Zoom in from the current scale, capped at `maximum`.
     static func zoomIn(_ current: CGFloat) -> CGFloat {
         clamp(current + step)
