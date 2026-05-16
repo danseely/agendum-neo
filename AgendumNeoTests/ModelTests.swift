@@ -230,6 +230,37 @@ struct UIFontScaleTests {
         #expect(!UIFontScale.isAtMinimum(UIFontScale.actualSize))
     }
 
+    @Test("Non-finite scale values fall back to actual size")
+    func clampSanitizesNonFiniteValues() {
+        #expect(approximately(UIFontScale.clamp(.nan), UIFontScale.actualSize))
+        #expect(approximately(UIFontScale.clamp(.infinity), UIFontScale.actualSize))
+        #expect(approximately(UIFontScale.clamp(-.infinity), UIFontScale.actualSize))
+    }
+
+    @Test("Dynamic type size mapping covers the documented range")
+    func dynamicTypeSizeMapsAcrossRange() {
+        #expect(UIFontScale.dynamicTypeSize(for: 0.7) == .xSmall)
+        #expect(UIFontScale.dynamicTypeSize(for: 0.8) == .small)
+        #expect(UIFontScale.dynamicTypeSize(for: 0.9) == .medium)
+        #expect(UIFontScale.dynamicTypeSize(for: 1.0) == .large)
+        #expect(UIFontScale.dynamicTypeSize(for: 1.1) == .xLarge)
+        #expect(UIFontScale.dynamicTypeSize(for: 1.2) == .xxLarge)
+        #expect(UIFontScale.dynamicTypeSize(for: 1.3) == .xxxLarge)
+        #expect(UIFontScale.dynamicTypeSize(for: 1.4) == .accessibility1)
+        #expect(UIFontScale.dynamicTypeSize(for: 1.5) == .accessibility2)
+        #expect(UIFontScale.dynamicTypeSize(for: 1.6) == .accessibility3)
+    }
+
+    @Test("Dynamic type size clamps out-of-range and non-finite inputs")
+    func dynamicTypeSizeClampsExtremes() {
+        // Below the floor clamps to the minimum bucket.
+        #expect(UIFontScale.dynamicTypeSize(for: 0.3) == .xSmall)
+        // Above the ceiling clamps to the maximum bucket.
+        #expect(UIFontScale.dynamicTypeSize(for: 3.0) == .accessibility3)
+        // NaN snaps to actualSize -> .large.
+        #expect(UIFontScale.dynamicTypeSize(for: .nan) == .large)
+    }
+
     /// Floating-point comparison helper. The step grid is 0.1, so a
     /// tolerance of 1e-9 catches arithmetic drift without false positives.
     private func approximately(

@@ -43,7 +43,7 @@ struct RootView: View {
                 .padding(.vertical, 6)
                 .background(.bar)
         }
-        .font(.system(size: NSFont.systemFontSize * uiFontScale))
+        .dynamicTypeSize(UIFontScale.dynamicTypeSize(for: uiFontScale))
         .onChange(of: app.hasCompletedFirstSync, initial: true) { _, completed in
             guard presentation == .window, lockedIdealHeight == nil, completed else { return }
             let target = computeIdealContentHeight()
