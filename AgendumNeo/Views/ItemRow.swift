@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 enum RowColumns {
@@ -169,6 +170,18 @@ private struct InboxRow<Status: View, Title: View>: View {
                 .monospacedDigit()
                 .lineLimit(1)
                 .frame(width: RowColumns.number, alignment: .trailing)
+                .contextMenu {
+                    Button("Open in Browser") {
+                        NSWorkspace.shared.open(url)
+                    }
+                    Button("Copy Link") {
+                        let pasteboard = NSPasteboard.general
+                        pasteboard.clearContents()
+                        pasteboard.setString(url.absoluteString, forType: .string)
+                    }
+                    Divider()
+                    ShareLink(item: url)
+                }
         }
     }
 }
