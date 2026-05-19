@@ -12,6 +12,9 @@ enum Queries {
     }
     """
 
+    // `latestReviews(first: 50)` returns the latest review per reviewer
+    // (server-side dedup; PENDING reviews are excluded). 50 is well above
+    // any realistic human-reviewer count on a single PR.
     static let inbox = """
     query Inbox($authored: String!, $reviewReq: String!, $issues: String!) {
       authored: search(query: $authored, type: ISSUE, first: 50) {

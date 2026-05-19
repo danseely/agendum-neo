@@ -33,16 +33,29 @@ struct ModelTests {
     @Test("Review verdict ranks changes-requested over approved over commented")
     func reviewVerdictDerivation() {
         #expect(PullRequest.deriveReviewVerdict(latestReviewStates: []) == nil)
-        #expect(PullRequest.deriveReviewVerdict(latestReviewStates: ["COMMENTED"]) == .commented)
-        #expect(PullRequest.deriveReviewVerdict(latestReviewStates: ["APPROVED"]) == .approved)
-        #expect(PullRequest.deriveReviewVerdict(latestReviewStates: ["CHANGES_REQUESTED"]) == .changesRequested)
+        #expect(PullRequest.deriveReviewVerdict(latestReviewStates: [.commented]) == .commented)
+        #expect(PullRequest.deriveReviewVerdict(latestReviewStates: [.approved]) == .approved)
+        #expect(PullRequest.deriveReviewVerdict(latestReviewStates: [.changesRequested]) == .changesRequested)
         // CHANGES_REQUESTED from any reviewer blocks merge, even with approvals from others.
-        #expect(PullRequest.deriveReviewVerdict(latestReviewStates: ["APPROVED", "CHANGES_REQUESTED"]) == .changesRequested)
+        #expect(PullRequest.deriveReviewVerdict(latestReviewStates: [.approved, .changesRequested]) == .changesRequested)
         // APPROVED still wins over COMMENTED.
-        #expect(PullRequest.deriveReviewVerdict(latestReviewStates: ["COMMENTED", "APPROVED"]) == .approved)
+        #expect(PullRequest.deriveReviewVerdict(latestReviewStates: [.commented, .approved]) == .approved)
+        // Exhaustive precedence with all three opinionated cases present.
+        #expect(PullRequest.deriveReviewVerdict(latestReviewStates: [.commented, .approved, .changesRequested]) == .changesRequested)
         // DISMISSED and PENDING are ignored.
-        #expect(PullRequest.deriveReviewVerdict(latestReviewStates: ["DISMISSED", "PENDING"]) == nil)
-        #expect(PullRequest.deriveReviewVerdict(latestReviewStates: ["DISMISSED", "APPROVED"]) == .approved)
+        #expect(PullRequest.deriveReviewVerdict(latestReviewStates: [.dismissed]) == nil)
+        #expect(PullRequest.deriveReviewVerdict(latestReviewStates: [.dismissed, .dismissed]) == nil)
+        #expect(PullRequest.deriveReviewVerdict(latestReviewStates: [.dismissed, .pending]) == nil)
+        #expect(PullRequest.deriveReviewVerdict(latestReviewStates: [.dismissed, .approved]) == .approved)
+    }
+
+    @Test("PRReviewState raw values match GitHub PullRequestReviewState enum")
+    func reviewStateRawValues() {
+        #expect(PRReviewState.approved.rawValue == "APPROVED")
+        #expect(PRReviewState.changesRequested.rawValue == "CHANGES_REQUESTED")
+        #expect(PRReviewState.commented.rawValue == "COMMENTED")
+        #expect(PRReviewState.dismissed.rawValue == "DISMISSED")
+        #expect(PRReviewState.pending.rawValue == "PENDING")
     }
 
     @Test("Issue status distinguishes authored from assigned")

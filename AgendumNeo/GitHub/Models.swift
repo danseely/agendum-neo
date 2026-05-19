@@ -32,6 +32,16 @@ enum PRReviewVerdict: String, Sendable, Codable {
     case commented
 }
 
+// Mirrors GitHub's PullRequestReviewState enum. `pending` is enumerated for
+// completeness but never appears in `latestReviews` (server-side filtered).
+enum PRReviewState: String, Sendable, Codable {
+    case approved = "APPROVED"
+    case changesRequested = "CHANGES_REQUESTED"
+    case commented = "COMMENTED"
+    case dismissed = "DISMISSED"
+    case pending = "PENDING"
+}
+
 enum PRReviewStatus: String, Sendable, Codable {
     case reviewRequested
 }
@@ -74,11 +84,11 @@ struct PullRequest: Sendable, Hashable, Identifiable, Codable {
     }
 
     // CHANGES_REQUESTED beats APPROVED beats COMMENTED, matching GitHub's own
-    // merge-eligibility semantics. DISMISSED and PENDING reviews are ignored.
-    static func deriveReviewVerdict(latestReviewStates: [String]) -> PRReviewVerdict? {
-        if latestReviewStates.contains("CHANGES_REQUESTED") { return .changesRequested }
-        if latestReviewStates.contains("APPROVED") { return .approved }
-        if latestReviewStates.contains("COMMENTED") { return .commented }
+    // merge-eligibility semantics. DISMISSED reviews are ignored.
+    static func deriveReviewVerdict(latestReviewStates: [PRReviewState]) -> PRReviewVerdict? {
+        if latestReviewStates.contains(.changesRequested) { return .changesRequested }
+        if latestReviewStates.contains(.approved) { return .approved }
+        if latestReviewStates.contains(.commented) { return .commented }
         return nil
     }
 }

@@ -164,7 +164,7 @@ private struct SearchNode: Decodable {
     let authorName: String?
     let repository: String?
     let reviewRequestsTotal: Int?
-    let latestReviewStates: [String]
+    let latestReviewStates: [PRReviewState]
 
     private enum CodingKeys: String, CodingKey {
         case typename = "__typename"
@@ -195,7 +195,8 @@ private struct SearchNode: Decodable {
         self.repository = (try c.decodeIfPresent(RepoBox.self, forKey: .repository))?.nameWithOwner
         self.reviewRequestsTotal = (try c.decodeIfPresent(CountBox.self, forKey: .reviewRequests))?.totalCount
         let reviews = try c.decodeIfPresent(ReviewListBox.self, forKey: .latestReviews)
-        self.latestReviewStates = reviews?.nodes?.compactMap(\.state) ?? []
+        // Unknown raw states (future GitHub additions) are skipped rather than failing the decode.
+        self.latestReviewStates = reviews?.nodes?.compactMap { $0.state.flatMap(PRReviewState.init(rawValue:)) } ?? []
     }
 
     func toPullRequest() -> PullRequest? {
