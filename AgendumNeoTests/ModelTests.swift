@@ -22,7 +22,9 @@ struct ModelTests {
     func authoredPRStatusDerivation() {
         #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 0, reviewCount: 0) == .open)
         #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 2, reviewCount: 0) == .waitingForReview)
-        #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 1, reviewCount: 3) == .reviewReceived)
+        // Regression for issue #41: a pending review request after prior reviews
+        // must surface as .waitingForReview, not stay stuck on .reviewReceived.
+        #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 1, reviewCount: 3) == .waitingForReview)
         #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 0, reviewCount: 1) == .reviewReceived)
     }
 

@@ -50,8 +50,8 @@ struct PullRequest: Sendable, Hashable, Identifiable, Codable {
     }
 
     static func deriveAuthoredStatus(reviewRequestCount: Int, reviewCount: Int) -> PRAuthoredStatus {
-        if reviewCount > 0 { return .reviewReceived }
         if reviewRequestCount > 0 { return .waitingForReview }
+        if reviewCount > 0 { return .reviewReceived }
         return .open
     }
 }
