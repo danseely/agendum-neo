@@ -50,11 +50,21 @@ struct RootView: View {
                     .background(.bar)
             }
         }
-        // .scaleEffect is the SwiftUI primitive for browser-style zoom —
-        // it scales the rendered view tree linearly, including text, icons,
-        // padding, and layout. .dynamicTypeSize on macOS doesn't reliably
-        // propagate through .font(.caption)/.headline overrides.
-        .scaleEffect(uiFontScale, anchor: .topLeading)
+        // Browser-style zoom. .scaleEffect alone scales the rendered output
+        // but NOT the layout bounds — at scale > 1.0 the Table lays out
+        // against the full window width, then renders at width * scale, so
+        // the right edge spills outside the window with no horizontal
+        // scroll. BrowserZoomEffect wraps the content in a GeometryReader
+        // and compensates the inner frame to `bounds / scale` so layout is
+        // computed against the smaller pixel space, then scales the result
+        // back up. Table's column auto-sizing and internal NSScrollView see
+        // real, compensated bounds — both scroll axes work, columns
+        // compress instead of overflowing.
+        //
+        // At identity (1.0) we return the content untouched so SwiftUI
+        // doesn't install a CATransform layer that would block scroll-wheel
+        // hit testing on the Table's NSScrollView.
+        .modifier(BrowserZoomEffect(scale: uiFontScale))
         .onChange(of: app.hasCompletedFirstSync, initial: true) { _, completed in
             guard presentation == .window, lockedIdealHeight == nil, completed else { return }
             let target = computeIdealContentHeight()
@@ -205,50 +215,75 @@ struct RootView: View {
     // MARK: - List
 
     private var inboxList: some View {
-        List(selection: $selection) {
-            Section {
-                if authoredPRs.isEmpty {
-                    Text("No PRs")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(authoredPRs) { pr in
-                        PRRowView(pr: pr, kind: .authored)
-                            .tag(InboxItemID.pr(pr.id))
-                            .padding(.vertical, 3)
-                            .contextMenu { linkContextMenu(url: pr.url) }
+        Table(of: InboxItem.self, selection: $selection) {
+            TableColumn("Status") { item in
+                StatusPill(text: item.statusText, color: item.statusColor)
+            }
+            .width(min: 110, ideal: 130, max: 170)
+
+            TableColumn("Title") { item in
+                HStack(spacing: 6) {
+                    Text(item.title)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    if item.isDraftPR {
+                        DraftBadge()
                     }
+                }
+                .help(item.title)
+            }
+            .width(min: 100, ideal: 280, max: 380)
+
+            TableColumn("Author") { item in
+                Text(item.author)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .foregroundStyle(.secondary)
+            }
+            .width(min: 60, ideal: 80, max: 130)
+
+            TableColumn("Repo") { item in
+                Text(repoShortName(item.repository))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .foregroundStyle(.secondary)
+            }
+            .width(min: 80, ideal: 120, max: 200)
+
+            TableColumn("#") { item in
+                HStack {
+                    Spacer(minLength: 0)
+                    Link("#\(item.number)", destination: item.url)
+                        .pointerStyle(.link)
+                        .font(.callout)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                }
+            }
+            .width(min: 48, ideal: 56, max: 70)
+        } rows: {
+            Section {
+                ForEach(authoredItems) { item in
+                    TableRow(item)
+                        .contextMenu { linkContextMenu(url: item.url) }
                 }
             } header: {
                 SectionHeader(title: "Your PRs", count: authoredPRs.count)
             }
 
             Section {
-                if reviewRequestedPRs.isEmpty {
-                    Text("No PRs")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(reviewRequestedPRs) { pr in
-                        PRRowView(pr: pr, kind: .reviewRequested)
-                            .tag(InboxItemID.pr(pr.id))
-                            .padding(.vertical, 3)
-                            .contextMenu { linkContextMenu(url: pr.url) }
-                    }
+                ForEach(reviewItems) { item in
+                    TableRow(item)
+                        .contextMenu { linkContextMenu(url: item.url) }
                 }
             } header: {
                 SectionHeader(title: "Awaiting your review", count: reviewRequestedPRs.count)
             }
 
             Section {
-                if assignedIssues.isEmpty {
-                    Text("No issues")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(assignedIssues) { issue in
-                        IssueRowView(issue: issue, viewerLogin: viewerLogin)
-                            .tag(InboxItemID.issue(issue.id))
-                            .padding(.vertical, 3)
-                            .contextMenu { linkContextMenu(url: issue.url) }
-                    }
+                ForEach(issueItems) { item in
+                    TableRow(item)
+                        .contextMenu { linkContextMenu(url: item.url) }
                 }
             } header: {
                 SectionHeader(title: "Assigned issues", count: assignedIssues.count)
@@ -286,6 +321,20 @@ struct RootView: View {
         + assignedIssues.map { .issue($0.id) }
     }
 
+    // MARK: - Table input rows
+
+    private var authoredItems: [InboxItem] {
+        authoredPRs.map(InboxItem.authoredPR)
+    }
+
+    private var reviewItems: [InboxItem] {
+        reviewRequestedPRs.map(InboxItem.reviewRequestedPR)
+    }
+
+    private var issueItems: [InboxItem] {
+        assignedIssues.map { InboxItem.issue($0, viewerLogin: viewerLogin) }
+    }
+
     // MARK: - Derived data
 
     private var authoredPRs: [PullRequest] {
@@ -319,6 +368,37 @@ struct RootView: View {
     }
 
     // MARK: - Selection helpers
+
+    // MARK: - Browser-style zoom modifier
+
+    /// Browser-style zoom: lay content out against a frame of `bounds / scale`,
+    /// then scale the rendered output back up. This way Table's column
+    /// auto-sizing and the internal NSScrollView see real, compensated layout
+    /// bounds — columns compress instead of overflowing off-screen, and both
+    /// scroll axes work.
+    ///
+    /// At identity (1.0) we return the content untouched. SwiftUI's
+    /// `.scaleEffect(1.0, …)` still installs a CATransform layer that
+    /// interferes with scroll-wheel hit testing on the `NSScrollView` backing
+    /// `Table`, so the identity passthrough is load-bearing for default zoom.
+    private struct BrowserZoomEffect: ViewModifier {
+        let scale: CGFloat
+
+        func body(content: Content) -> some View {
+            if abs(scale - 1.0) < 0.001 {
+                content
+            } else {
+                GeometryReader { proxy in
+                    content
+                        .frame(
+                            width: proxy.size.width / scale,
+                            height: proxy.size.height / scale
+                        )
+                        .scaleEffect(scale, anchor: .topLeading)
+                }
+            }
+        }
+    }
 
     private func openSelection() {
         guard let selection else { return }
