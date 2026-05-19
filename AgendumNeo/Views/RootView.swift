@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 enum InboxItemID: Hashable {
@@ -214,9 +215,7 @@ struct RootView: View {
                         PRRowView(pr: pr, kind: .authored)
                             .tag(InboxItemID.pr(pr.id))
                             .padding(.vertical, 3)
-                            .contextMenu {
-                                Button("Open in Browser") { openURL(pr.url) }
-                            }
+                            .contextMenu { linkContextMenu(url: pr.url) }
                     }
                 }
             } header: {
@@ -232,9 +231,7 @@ struct RootView: View {
                         PRRowView(pr: pr, kind: .reviewRequested)
                             .tag(InboxItemID.pr(pr.id))
                             .padding(.vertical, 3)
-                            .contextMenu {
-                                Button("Open in Browser") { openURL(pr.url) }
-                            }
+                            .contextMenu { linkContextMenu(url: pr.url) }
                     }
                 }
             } header: {
@@ -250,9 +247,7 @@ struct RootView: View {
                         IssueRowView(issue: issue, viewerLogin: viewerLogin)
                             .tag(InboxItemID.issue(issue.id))
                             .padding(.vertical, 3)
-                            .contextMenu {
-                                Button("Open in Browser") { openURL(issue.url) }
-                            }
+                            .contextMenu { linkContextMenu(url: issue.url) }
                     }
                 }
             } header: {
@@ -307,6 +302,20 @@ struct RootView: View {
 
     private var viewerLogin: String? {
         app.activeNamespace?.accountLogin
+    }
+
+    // MARK: - Row context menu
+
+    @ViewBuilder
+    private func linkContextMenu(url: URL) -> some View {
+        Button("Open in Browser") { openURL(url) }
+        Button("Copy Link") {
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+            pasteboard.setString(url.absoluteString, forType: .string)
+        }
+        Divider()
+        ShareLink(item: url)
     }
 
     // MARK: - Selection helpers
