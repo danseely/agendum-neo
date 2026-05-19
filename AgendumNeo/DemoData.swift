@@ -52,7 +52,7 @@ enum DemoData {
             // Demos PR #658-style scenario: an already-approved PR with a fresh
             // review requested from an additional reviewer. reviewDecision stays
             // APPROVED, so we keep showing "Approved" rather than reverting.
-            pr(10, 108, "Migrate auth middleware off legacy session store",
+            pr(10, 108, "Bump GraphQL schema version and regenerate types",
                owner: owner, repo: "platform-api", author: "Dan",
                draft: false, hoursAgo: 66, reqs: 1, verdict: .approved, decision: .approved)
         ]
