@@ -18,6 +18,7 @@ struct RootView: View {
 
     @State private var selection: InboxItemID?
     @State private var lockedIdealHeight: CGFloat?
+    @FocusState private var isInboxFocused: Bool
 
     var presentation: Presentation = .window
 
@@ -66,10 +67,19 @@ struct RootView: View {
         // hit testing on the Table's NSScrollView.
         .modifier(BrowserZoomEffect(scale: uiFontScale))
         .onChange(of: app.hasCompletedFirstSync, initial: true) { _, completed in
-            guard presentation == .window, lockedIdealHeight == nil, completed else { return }
-            let target = computeIdealContentHeight()
-            lockedIdealHeight = target
-            resizeWindowHeight(to: target)
+            guard completed else { return }
+            if presentation == .window, lockedIdealHeight == nil {
+                let target = computeIdealContentHeight()
+                lockedIdealHeight = target
+                resizeWindowHeight(to: target)
+            }
+            // Hand the Table first-responder status so arrow keys engage
+            // without a prior mouse click (issue #26). Deferred by a
+            // run-loop tick so the Table has been mounted by the time we
+            // set focus on it.
+            DispatchQueue.main.async {
+                isInboxFocused = true
+            }
         }
     }
 
@@ -301,6 +311,7 @@ struct RootView: View {
                 SectionHeader(title: "Assigned issues", count: assignedIssues.count)
             }
         }
+        .focused($isInboxFocused)
         .background(ListDoubleClickHandler { openSelection() })
         .onKeyPress(.return) {
             openSelection()
