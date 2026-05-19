@@ -18,17 +18,78 @@ struct ModelTests {
         #expect(ns.displayName == "acme-corp")
     }
 
-    @Test("Authored PR status reflects reviewers and review verdict")
-    func authoredPRStatusDerivation() {
-        #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 0, latestReviewVerdict: nil) == .open)
-        #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 2, latestReviewVerdict: nil) == .waitingForReview)
-        // Regression for issue #41: a pending re-request must beat any prior verdict.
-        #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 1, latestReviewVerdict: .approved) == .waitingForReview)
-        #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 1, latestReviewVerdict: .changesRequested) == .waitingForReview)
-        #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 1, latestReviewVerdict: .commented) == .waitingForReview)
-        #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 0, latestReviewVerdict: .approved) == .approved)
-        #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 0, latestReviewVerdict: .changesRequested) == .changesRequested)
-        #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 0, latestReviewVerdict: .commented) == .commented)
+    @Test("Authored PR status prefers GitHub reviewDecision when present")
+    func authoredPRStatusUsesReviewDecision() {
+        // Regression for issue with PR #658: adding a new reviewer to an
+        // already-approved PR must not flip the status back to "waiting".
+        // GitHub keeps reviewDecision == APPROVED in that case.
+        #expect(PullRequest.deriveAuthoredStatus(
+            reviewDecision: .approved,
+            reviewRequestCount: 1,
+            latestReviewVerdict: .approved
+        ) == .approved)
+        // reviewDecision dominates a stale CHANGES_REQUESTED on a latest review
+        // (e.g. when GitHub considers it dismissed by branch-protection rules).
+        #expect(PullRequest.deriveAuthoredStatus(
+            reviewDecision: .approved,
+            reviewRequestCount: 0,
+            latestReviewVerdict: .changesRequested
+        ) == .approved)
+        #expect(PullRequest.deriveAuthoredStatus(
+            reviewDecision: .changesRequested,
+            reviewRequestCount: 0,
+            latestReviewVerdict: .approved
+        ) == .changesRequested)
+        // Regression for issue #41: a re-request that flips reviewDecision back
+        // to REVIEW_REQUIRED reads as "waiting" even if the prior approval is
+        // still in latestReviews.
+        #expect(PullRequest.deriveAuthoredStatus(
+            reviewDecision: .reviewRequired,
+            reviewRequestCount: 1,
+            latestReviewVerdict: .approved
+        ) == .waitingForReview)
+        // REVIEW_REQUIRED with no pending request but a commented verdict
+        // surfaces the commented state.
+        #expect(PullRequest.deriveAuthoredStatus(
+            reviewDecision: .reviewRequired,
+            reviewRequestCount: 0,
+            latestReviewVerdict: .commented
+        ) == .commented)
+        // REVIEW_REQUIRED with no pending request and no verdict reads as open:
+        // branch protection requires review eventually, but no one has been
+        // asked and no one is "late". The author still needs to act.
+        #expect(PullRequest.deriveAuthoredStatus(
+            reviewDecision: .reviewRequired,
+            reviewRequestCount: 0,
+            latestReviewVerdict: nil
+        ) == .open)
+    }
+
+    @Test("Authored PR status falls back to verdict + request count when reviewDecision is nil")
+    func authoredPRStatusFallback() {
+        // reviewDecision is null on repos without branch-protection requiring
+        // review. Fall back to: pending request wins, else verdict, else open.
+        #expect(PullRequest.deriveAuthoredStatus(
+            reviewDecision: nil, reviewRequestCount: 0, latestReviewVerdict: nil
+        ) == .open)
+        #expect(PullRequest.deriveAuthoredStatus(
+            reviewDecision: nil, reviewRequestCount: 2, latestReviewVerdict: nil
+        ) == .waitingForReview)
+        #expect(PullRequest.deriveAuthoredStatus(
+            reviewDecision: nil, reviewRequestCount: 1, latestReviewVerdict: .approved
+        ) == .waitingForReview)
+        #expect(PullRequest.deriveAuthoredStatus(
+            reviewDecision: nil, reviewRequestCount: 1, latestReviewVerdict: .commented
+        ) == .waitingForReview)
+        #expect(PullRequest.deriveAuthoredStatus(
+            reviewDecision: nil, reviewRequestCount: 0, latestReviewVerdict: .approved
+        ) == .approved)
+        #expect(PullRequest.deriveAuthoredStatus(
+            reviewDecision: nil, reviewRequestCount: 0, latestReviewVerdict: .changesRequested
+        ) == .changesRequested)
+        #expect(PullRequest.deriveAuthoredStatus(
+            reviewDecision: nil, reviewRequestCount: 0, latestReviewVerdict: .commented
+        ) == .commented)
     }
 
     @Test("Review verdict ranks changes-requested over approved over commented")
@@ -57,6 +118,13 @@ struct ModelTests {
         #expect(PRReviewState.commented.rawValue == "COMMENTED")
         #expect(PRReviewState.dismissed.rawValue == "DISMISSED")
         #expect(PRReviewState.pending.rawValue == "PENDING")
+    }
+
+    @Test("PRReviewDecision raw values match GitHub PullRequestReviewDecision enum")
+    func reviewDecisionRawValues() {
+        #expect(PRReviewDecision.approved.rawValue == "APPROVED")
+        #expect(PRReviewDecision.changesRequested.rawValue == "CHANGES_REQUESTED")
+        #expect(PRReviewDecision.reviewRequired.rawValue == "REVIEW_REQUIRED")
     }
 
     @Test("Issue status distinguishes authored from assigned")

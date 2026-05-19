@@ -165,10 +165,11 @@ private struct SearchNode: Decodable {
     let repository: String?
     let reviewRequestsTotal: Int?
     let latestReviewStates: [PRReviewState]
+    let reviewDecision: PRReviewDecision?
 
     private enum CodingKeys: String, CodingKey {
         case typename = "__typename"
-        case id, number, title, url, updatedAt, isDraft, author, repository, reviewRequests, latestReviews
+        case id, number, title, url, updatedAt, isDraft, author, repository, reviewRequests, latestReviews, reviewDecision
     }
 
     private struct AuthorBox: Decodable {
@@ -199,6 +200,10 @@ private struct SearchNode: Decodable {
         let reviews = try c.decodeIfPresent(ReviewListBox.self, forKey: .latestReviews)
         // Unknown raw states (future GitHub additions) are skipped rather than failing the decode.
         self.latestReviewStates = reviews?.nodes?.compactMap { PRReviewState(rawValue: $0.state) } ?? []
+        // reviewDecision is nullable in the schema (e.g. no required-review
+        // branch protection); an unknown future raw value falls back to nil.
+        let rawDecision = try c.decodeIfPresent(String.self, forKey: .reviewDecision)
+        self.reviewDecision = rawDecision.flatMap { PRReviewDecision(rawValue: $0) }
     }
 
     func toPullRequest() -> PullRequest? {
@@ -217,7 +222,8 @@ private struct SearchNode: Decodable {
             isDraft: isDraft ?? false,
             updatedAt: updatedAt,
             reviewRequestCount: reviewRequestsTotal ?? 0,
-            latestReviewVerdict: PullRequest.deriveReviewVerdict(latestReviewStates: latestReviewStates)
+            latestReviewVerdict: PullRequest.deriveReviewVerdict(latestReviewStates: latestReviewStates),
+            reviewDecision: reviewDecision
         )
     }
 

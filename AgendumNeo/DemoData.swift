@@ -21,54 +21,61 @@ enum DemoData {
         let authoredPRs: [PullRequest] = [
             pr(1, 142, "Smooth out menu bar popover dismissal",
                owner: owner, repo: "agendum-neo", author: "Dan",
-               draft: false, hoursAgo: 0.75, reqs: 0, verdict: nil),
+               draft: false, hoursAgo: 0.75, reqs: 0, verdict: nil, decision: nil),
             pr(2, 141, "Refactor sync engine to a typed actor",
                owner: owner, repo: "agendum-neo", author: "Dan",
-               draft: false, hoursAgo: 4, reqs: 2, verdict: nil),
+               draft: false, hoursAgo: 4, reqs: 2, verdict: nil, decision: .reviewRequired),
             pr(3, 138, "Improve test coverage for the GraphQL decoder",
                owner: owner, repo: "agendum-neo", author: "Dan",
-               draft: false, hoursAgo: 20, reqs: 0, verdict: .approved),
+               draft: false, hoursAgo: 20, reqs: 0, verdict: .approved, decision: .approved),
             pr(4, 133, "Spike: rate-limit handling with retry budget",
                owner: owner, repo: "ingest-pipeline", author: "Dan",
-               draft: true, hoursAgo: 28, reqs: 0, verdict: nil),
+               draft: true, hoursAgo: 28, reqs: 0, verdict: nil, decision: nil),
             pr(5, 131, "Adopt SwiftData for cached snapshots",
                owner: owner, repo: "agendum-neo", author: "Dan",
-               draft: false, hoursAgo: 31, reqs: 0, verdict: .changesRequested),
+               draft: false, hoursAgo: 31, reqs: 0, verdict: .changesRequested, decision: .changesRequested),
             pr(6, 129, "Wire NSWorkspace open-URL through the new router",
                owner: owner, repo: "agendum-neo", author: "Dan",
-               draft: false, hoursAgo: 36, reqs: 3, verdict: nil),
+               draft: false, hoursAgo: 36, reqs: 3, verdict: nil, decision: .reviewRequired),
             pr(7, 124, "Tahoe-friendly toolbar layout",
                owner: owner, repo: "agendum-neo", author: "Dan",
-               draft: false, hoursAgo: 44, reqs: 0, verdict: .commented),
+               draft: false, hoursAgo: 44, reqs: 0, verdict: .commented, decision: .reviewRequired),
             pr(8, 118, "Replace inline keys with a typed scheme",
                owner: owner, repo: "platform-cli", author: "Dan",
-               draft: true, hoursAgo: 52, reqs: 0, verdict: nil),
-            // Demos issue #41: a pending re-request must override a prior verdict.
-            // Renders as "Waiting for review" despite the prior approval.
+               draft: true, hoursAgo: 52, reqs: 0, verdict: nil, decision: nil),
+            // Demos issue #41: a re-request after a dismissed approval. GitHub
+            // flips reviewDecision back to REVIEW_REQUIRED so we read "Waiting"
+            // despite a prior approval still being in latestReviews.
             pr(9, 112, "Convert sync engine tests to Swift Testing",
                owner: owner, repo: "agendum-neo", author: "Dan",
-               draft: false, hoursAgo: 60, reqs: 1, verdict: .approved)
+               draft: false, hoursAgo: 60, reqs: 1, verdict: .approved, decision: .reviewRequired),
+            // Demos PR #658-style scenario: an already-approved PR with a fresh
+            // review requested from an additional reviewer. reviewDecision stays
+            // APPROVED, so we keep showing "Approved" rather than reverting.
+            pr(10, 108, "Migrate auth middleware off legacy session store",
+               owner: owner, repo: "platform-api", author: "Dan",
+               draft: false, hoursAgo: 66, reqs: 1, verdict: .approved, decision: .approved)
         ]
 
         let reviewRequestedPRs: [PullRequest] = [
             pr(101, 217, "Migrate auth middleware off legacy session store",
                owner: owner, repo: "platform-api", author: "Alice",
-               draft: false, hoursAgo: 2, reqs: 1, verdict: nil),
+               draft: false, hoursAgo: 2, reqs: 1, verdict: nil, decision: .reviewRequired),
             pr(102, 215, "Drop deprecated webhook adapter",
                owner: owner, repo: "platform-api", author: "Bob",
-               draft: false, hoursAgo: 9, reqs: 1, verdict: nil),
+               draft: false, hoursAgo: 9, reqs: 1, verdict: nil, decision: .reviewRequired),
             pr(103, 213, "Lower P95 on /v2/search by 40%",
                owner: owner, repo: "search-service", author: "Priya",
-               draft: false, hoursAgo: 13, reqs: 1, verdict: nil),
+               draft: false, hoursAgo: 13, reqs: 1, verdict: nil, decision: .reviewRequired),
             pr(104, 210, "Adopt structured logging across workers",
                owner: owner, repo: "ingest-pipeline", author: "Mei",
-               draft: false, hoursAgo: 18, reqs: 1, verdict: nil),
+               draft: false, hoursAgo: 18, reqs: 1, verdict: nil, decision: .reviewRequired),
             pr(105, 208, "Cache invalidation on namespace switch",
                owner: owner, repo: "platform-api", author: "Jonah",
-               draft: false, hoursAgo: 26, reqs: 1, verdict: nil),
+               draft: false, hoursAgo: 26, reqs: 1, verdict: nil, decision: .reviewRequired),
             pr(106, 205, "Backfill retention-window field",
                owner: owner, repo: "platform-api", author: "Sasha",
-               draft: false, hoursAgo: 40, reqs: 1, verdict: nil)
+               draft: false, hoursAgo: 40, reqs: 1, verdict: nil, decision: .reviewRequired)
         ]
 
         let assignedIssues: [Issue] = [
@@ -123,7 +130,8 @@ private func pr(
     draft: Bool,
     hoursAgo: Double,
     reqs: Int,
-    verdict: PRReviewVerdict?
+    verdict: PRReviewVerdict?,
+    decision: PRReviewDecision?
 ) -> PullRequest {
     PullRequest(
         id: "DEMO-PR-\(tag)",
@@ -135,7 +143,8 @@ private func pr(
         isDraft: draft,
         updatedAt: Date().addingTimeInterval(-hoursAgo * 3600),
         reviewRequestCount: reqs,
-        latestReviewVerdict: verdict
+        latestReviewVerdict: verdict,
+        reviewDecision: decision
     )
 }
 
