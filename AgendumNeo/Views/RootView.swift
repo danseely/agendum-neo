@@ -251,7 +251,7 @@ struct RootView: View {
             }
             .width(min: 80, ideal: 120, max: 200)
 
-            TableColumn("#") { item in
+            TableColumn("Link") { item in
                 HStack {
                     Spacer(minLength: 0)
                     Link("#\(item.number)", destination: item.url)
