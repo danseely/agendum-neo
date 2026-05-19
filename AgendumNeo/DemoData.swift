@@ -43,9 +43,11 @@ enum DemoData {
             pr(8, 118, "Replace inline keys with a typed scheme",
                owner: owner, repo: "platform-cli", author: "Dan",
                draft: true, hoursAgo: 52, reqs: 0, verdict: nil),
+            // Demos issue #41: a pending re-request must override a prior verdict.
+            // Renders as "Waiting for review" despite the prior approval.
             pr(9, 112, "Convert sync engine tests to Swift Testing",
                owner: owner, repo: "agendum-neo", author: "Dan",
-               draft: false, hoursAgo: 60, reqs: 0, verdict: .approved)
+               draft: false, hoursAgo: 60, reqs: 1, verdict: .approved)
         ]
 
         let reviewRequestedPRs: [PullRequest] = [

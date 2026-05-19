@@ -177,7 +177,9 @@ private struct SearchNode: Decodable {
     }
     private struct RepoBox: Decodable { let nameWithOwner: String }
     private struct CountBox: Decodable { let totalCount: Int }
-    private struct ReviewNodeBox: Decodable { let state: String? }
+    // `PullRequestReview.state` is NON_NULL in the GraphQL schema; a null
+    // would indicate a server/schema break and should fail the decode loudly.
+    private struct ReviewNodeBox: Decodable { let state: String }
     private struct ReviewListBox: Decodable { let nodes: [ReviewNodeBox]? }
 
     init(from decoder: any Decoder) throws {
@@ -196,7 +198,7 @@ private struct SearchNode: Decodable {
         self.reviewRequestsTotal = (try c.decodeIfPresent(CountBox.self, forKey: .reviewRequests))?.totalCount
         let reviews = try c.decodeIfPresent(ReviewListBox.self, forKey: .latestReviews)
         // Unknown raw states (future GitHub additions) are skipped rather than failing the decode.
-        self.latestReviewStates = reviews?.nodes?.compactMap { $0.state.flatMap(PRReviewState.init(rawValue:)) } ?? []
+        self.latestReviewStates = reviews?.nodes?.compactMap { PRReviewState(rawValue: $0.state) } ?? []
     }
 
     func toPullRequest() -> PullRequest? {

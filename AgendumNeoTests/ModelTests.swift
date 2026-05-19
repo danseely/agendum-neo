@@ -25,6 +25,7 @@ struct ModelTests {
         // Regression for issue #41: a pending re-request must beat any prior verdict.
         #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 1, latestReviewVerdict: .approved) == .waitingForReview)
         #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 1, latestReviewVerdict: .changesRequested) == .waitingForReview)
+        #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 1, latestReviewVerdict: .commented) == .waitingForReview)
         #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 0, latestReviewVerdict: .approved) == .approved)
         #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 0, latestReviewVerdict: .changesRequested) == .changesRequested)
         #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 0, latestReviewVerdict: .commented) == .commented)

@@ -30,6 +30,14 @@ enum PRReviewVerdict: String, Sendable, Codable {
     case approved
     case changesRequested
     case commented
+
+    var authoredStatus: PRAuthoredStatus {
+        switch self {
+        case .approved: return .approved
+        case .changesRequested: return .changesRequested
+        case .commented: return .commented
+        }
+    }
 }
 
 // Mirrors GitHub's PullRequestReviewState enum. `pending` is enumerated for
@@ -75,12 +83,7 @@ struct PullRequest: Sendable, Hashable, Identifiable, Codable {
         latestReviewVerdict: PRReviewVerdict?
     ) -> PRAuthoredStatus {
         if reviewRequestCount > 0 { return .waitingForReview }
-        switch latestReviewVerdict {
-        case .changesRequested: return .changesRequested
-        case .approved: return .approved
-        case .commented: return .commented
-        case nil: return .open
-        }
+        return latestReviewVerdict?.authoredStatus ?? .open
     }
 
     // CHANGES_REQUESTED beats APPROVED beats COMMENTED, matching GitHub's own
