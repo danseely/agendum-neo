@@ -18,14 +18,31 @@ struct ModelTests {
         #expect(ns.displayName == "acme-corp")
     }
 
-    @Test("Authored PR status reflects reviewers and reviews")
+    @Test("Authored PR status reflects reviewers and review verdict")
     func authoredPRStatusDerivation() {
-        #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 0, reviewCount: 0) == .open)
-        #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 2, reviewCount: 0) == .waitingForReview)
-        // Regression for issue #41: a pending review request after prior reviews
-        // must surface as .waitingForReview, not stay stuck on .reviewReceived.
-        #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 1, reviewCount: 3) == .waitingForReview)
-        #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 0, reviewCount: 1) == .reviewReceived)
+        #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 0, latestReviewVerdict: nil) == .open)
+        #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 2, latestReviewVerdict: nil) == .waitingForReview)
+        // Regression for issue #41: a pending re-request must beat any prior verdict.
+        #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 1, latestReviewVerdict: .approved) == .waitingForReview)
+        #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 1, latestReviewVerdict: .changesRequested) == .waitingForReview)
+        #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 0, latestReviewVerdict: .approved) == .approved)
+        #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 0, latestReviewVerdict: .changesRequested) == .changesRequested)
+        #expect(PullRequest.deriveAuthoredStatus(reviewRequestCount: 0, latestReviewVerdict: .commented) == .commented)
+    }
+
+    @Test("Review verdict ranks changes-requested over approved over commented")
+    func reviewVerdictDerivation() {
+        #expect(PullRequest.deriveReviewVerdict(latestReviewStates: []) == nil)
+        #expect(PullRequest.deriveReviewVerdict(latestReviewStates: ["COMMENTED"]) == .commented)
+        #expect(PullRequest.deriveReviewVerdict(latestReviewStates: ["APPROVED"]) == .approved)
+        #expect(PullRequest.deriveReviewVerdict(latestReviewStates: ["CHANGES_REQUESTED"]) == .changesRequested)
+        // CHANGES_REQUESTED from any reviewer blocks merge, even with approvals from others.
+        #expect(PullRequest.deriveReviewVerdict(latestReviewStates: ["APPROVED", "CHANGES_REQUESTED"]) == .changesRequested)
+        // APPROVED still wins over COMMENTED.
+        #expect(PullRequest.deriveReviewVerdict(latestReviewStates: ["COMMENTED", "APPROVED"]) == .approved)
+        // DISMISSED and PENDING are ignored.
+        #expect(PullRequest.deriveReviewVerdict(latestReviewStates: ["DISMISSED", "PENDING"]) == nil)
+        #expect(PullRequest.deriveReviewVerdict(latestReviewStates: ["DISMISSED", "APPROVED"]) == .approved)
     }
 
     @Test("Issue status distinguishes authored from assigned")

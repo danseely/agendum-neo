@@ -21,7 +21,15 @@ struct Namespace: Sendable, Hashable, Identifiable, Codable {
 enum PRAuthoredStatus: String, Sendable, Codable {
     case open
     case waitingForReview
-    case reviewReceived
+    case approved
+    case changesRequested
+    case commented
+}
+
+enum PRReviewVerdict: String, Sendable, Codable {
+    case approved
+    case changesRequested
+    case commented
 }
 
 enum PRReviewStatus: String, Sendable, Codable {
@@ -43,16 +51,35 @@ struct PullRequest: Sendable, Hashable, Identifiable, Codable {
     let isDraft: Bool
     let updatedAt: Date
     let reviewRequestCount: Int
-    let reviewCount: Int
+    let latestReviewVerdict: PRReviewVerdict?
 
     var authoredStatus: PRAuthoredStatus {
-        Self.deriveAuthoredStatus(reviewRequestCount: reviewRequestCount, reviewCount: reviewCount)
+        Self.deriveAuthoredStatus(
+            reviewRequestCount: reviewRequestCount,
+            latestReviewVerdict: latestReviewVerdict
+        )
     }
 
-    static func deriveAuthoredStatus(reviewRequestCount: Int, reviewCount: Int) -> PRAuthoredStatus {
+    static func deriveAuthoredStatus(
+        reviewRequestCount: Int,
+        latestReviewVerdict: PRReviewVerdict?
+    ) -> PRAuthoredStatus {
         if reviewRequestCount > 0 { return .waitingForReview }
-        if reviewCount > 0 { return .reviewReceived }
-        return .open
+        switch latestReviewVerdict {
+        case .changesRequested: return .changesRequested
+        case .approved: return .approved
+        case .commented: return .commented
+        case nil: return .open
+        }
+    }
+
+    // CHANGES_REQUESTED beats APPROVED beats COMMENTED, matching GitHub's own
+    // merge-eligibility semantics. DISMISSED and PENDING reviews are ignored.
+    static func deriveReviewVerdict(latestReviewStates: [String]) -> PRReviewVerdict? {
+        if latestReviewStates.contains("CHANGES_REQUESTED") { return .changesRequested }
+        if latestReviewStates.contains("APPROVED") { return .approved }
+        if latestReviewStates.contains("COMMENTED") { return .commented }
+        return nil
     }
 }
 

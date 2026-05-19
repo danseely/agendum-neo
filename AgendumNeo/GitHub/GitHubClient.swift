@@ -164,11 +164,11 @@ private struct SearchNode: Decodable {
     let authorName: String?
     let repository: String?
     let reviewRequestsTotal: Int?
-    let reviewsTotal: Int?
+    let latestReviewStates: [String]
 
     private enum CodingKeys: String, CodingKey {
         case typename = "__typename"
-        case id, number, title, url, updatedAt, isDraft, author, repository, reviewRequests, reviews
+        case id, number, title, url, updatedAt, isDraft, author, repository, reviewRequests, latestReviews
     }
 
     private struct AuthorBox: Decodable {
@@ -177,6 +177,8 @@ private struct SearchNode: Decodable {
     }
     private struct RepoBox: Decodable { let nameWithOwner: String }
     private struct CountBox: Decodable { let totalCount: Int }
+    private struct ReviewNodeBox: Decodable { let state: String? }
+    private struct ReviewListBox: Decodable { let nodes: [ReviewNodeBox]? }
 
     init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -192,7 +194,8 @@ private struct SearchNode: Decodable {
         self.authorName = author?.name
         self.repository = (try c.decodeIfPresent(RepoBox.self, forKey: .repository))?.nameWithOwner
         self.reviewRequestsTotal = (try c.decodeIfPresent(CountBox.self, forKey: .reviewRequests))?.totalCount
-        self.reviewsTotal = (try c.decodeIfPresent(CountBox.self, forKey: .reviews))?.totalCount
+        let reviews = try c.decodeIfPresent(ReviewListBox.self, forKey: .latestReviews)
+        self.latestReviewStates = reviews?.nodes?.compactMap(\.state) ?? []
     }
 
     func toPullRequest() -> PullRequest? {
@@ -211,7 +214,7 @@ private struct SearchNode: Decodable {
             isDraft: isDraft ?? false,
             updatedAt: updatedAt,
             reviewRequestCount: reviewRequestsTotal ?? 0,
-            reviewCount: reviewsTotal ?? 0
+            latestReviewVerdict: PullRequest.deriveReviewVerdict(latestReviewStates: latestReviewStates)
         )
     }
 

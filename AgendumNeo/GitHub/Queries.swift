@@ -47,7 +47,7 @@ enum Queries {
       author { ...authorFields }
       repository { nameWithOwner }
       reviewRequests(first: 1) { totalCount }
-      reviews(first: 1) { totalCount }
+      latestReviews(first: 50) { nodes { state } }
     }
 
     fragment authorFields on Actor {
