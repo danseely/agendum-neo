@@ -44,7 +44,9 @@ struct PRRowView: View {
             switch pr.authoredStatus {
             case .open: return "Open"
             case .waitingForReview: return "Waiting for review"
-            case .reviewReceived: return "Review received"
+            case .approved: return "Approved"
+            case .changesRequested: return "Changes requested"
+            case .commented: return "Commented"
             }
         case .reviewRequested:
             return "Review requested"
@@ -57,7 +59,9 @@ struct PRRowView: View {
             switch pr.authoredStatus {
             case .open: return StatusPalette.open
             case .waitingForReview: return StatusPalette.waitingForReview
-            case .reviewReceived: return StatusPalette.reviewReceived
+            case .approved: return StatusPalette.approved
+            case .changesRequested: return StatusPalette.changesRequested
+            case .commented: return StatusPalette.commented
             }
         case .reviewRequested:
             return StatusPalette.reviewRequested
@@ -103,7 +107,9 @@ struct IssueRowView: View {
 private enum StatusPalette {
     static let open               = Color(hex: 0x60a5fa)
     static let waitingForReview   = Color(hex: 0xffaa00)
-    static let reviewReceived     = Color(hex: 0x4ade80)
+    static let approved           = Color(hex: 0x4ade80)
+    static let changesRequested   = Color(hex: 0xf87171)
+    static let commented          = Color(hex: 0x94a3b8)
     static let reviewRequested    = Color(hex: 0xa78bfa)
     static let assignedToYou      = Color(hex: 0x2dd4bf)
 }
