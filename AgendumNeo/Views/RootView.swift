@@ -94,9 +94,20 @@ struct RootView: View {
                 height: targetContentHeight
             )
             let targetFrame = window.frameRect(forContentRect: targetContentRect)
-            var newFrame = currentFrame
-            newFrame.size.height = targetFrame.height
-            newFrame.origin.y = currentFrame.maxY - targetFrame.height
+
+            // Clamp against the screen the window currently lives on (falling
+            // back to main, then to the current frame as a no-op). Without
+            // this, a remembered position near the screen bottom would push
+            // the resized window's bottom edge off-screen — see #29.
+            let visibleFrame =
+                window.screen?.visibleFrame
+                ?? NSScreen.main?.visibleFrame
+                ?? currentFrame
+            let newFrame = WindowResizeClamp.clampedFrame(
+                currentFrame: currentFrame,
+                targetFrameHeight: targetFrame.height,
+                visibleFrame: visibleFrame
+            )
 
             window.setFrame(newFrame, display: true, animate: true)
         }

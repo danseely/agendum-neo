@@ -256,6 +256,68 @@ struct InboxWindowHeightTests {
     }
 }
 
+@Suite("Window resize clamp")
+struct WindowResizeClampTests {
+
+    // A typical screen: 1440x900 with the menu bar excluded.
+    private let visibleFrame = CGRect(x: 0, y: 0, width: 1440, height: 875)
+
+    @Test("Target fits within the screen — frame uses the full target height")
+    func targetFitsUnclamped() {
+        // Window top at y=800, target height 400 — bottom lands at 400,
+        // safely above visibleFrame.minY (0).
+        let current = CGRect(x: 100, y: 600, width: 720, height: 200)
+        let clamped = WindowResizeClamp.clampedFrame(
+            currentFrame: current,
+            targetFrameHeight: 400,
+            visibleFrame: visibleFrame
+        )
+        #expect(clamped.height == 400)
+        // Anchored to the current top edge.
+        #expect(clamped.maxY == current.maxY)
+    }
+
+    @Test("Target overflows below — height shrinks so the bottom stays on screen")
+    func clampsHeightWhenWindowSitsLow() {
+        // Window top at y=300, only 300pt of vertical room down to the
+        // bottom of the visible frame. Asking for 600 should clamp to 300.
+        let current = CGRect(x: 100, y: 100, width: 720, height: 200)
+        let clamped = WindowResizeClamp.clampedFrame(
+            currentFrame: current,
+            targetFrameHeight: 600,
+            visibleFrame: visibleFrame
+        )
+        #expect(clamped.height == 300)
+        #expect(clamped.minY == visibleFrame.minY)
+        #expect(clamped.maxY == current.maxY)
+    }
+
+    @Test("Top above the screen is pulled back to the visible top edge")
+    func clampsTopWhenWindowSitsHigh() {
+        // Pathological remembered frame: top above the visible area.
+        let current = CGRect(x: 100, y: 800, width: 720, height: 200)
+        let visible = CGRect(x: 0, y: 0, width: 1440, height: 900)
+        let clamped = WindowResizeClamp.clampedFrame(
+            currentFrame: current,
+            targetFrameHeight: 400,
+            visibleFrame: visible
+        )
+        #expect(clamped.maxY == visible.maxY)
+        #expect(clamped.height == 400)
+    }
+
+    @Test("Empty visible frame is a no-op")
+    func emptyVisibleFrameIsNoOp() {
+        let current = CGRect(x: 100, y: 100, width: 720, height: 200)
+        let clamped = WindowResizeClamp.clampedFrame(
+            currentFrame: current,
+            targetFrameHeight: 600,
+            visibleFrame: .zero
+        )
+        #expect(clamped == current)
+    }
+}
+
 @Suite("App model lifecycle")
 @MainActor
 struct AppModelLifecycleTests {
