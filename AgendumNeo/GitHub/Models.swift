@@ -106,12 +106,22 @@ struct PullRequest: Sendable, Hashable, Identifiable, Codable {
         case .reviewRequired:
             // Required review not yet satisfied. A pending request means we're
             // actively waiting on someone; a commented verdict surfaces that
-            // people are engaging. With neither, the PR is still open — branch
-            // protection just hasn't been satisfied yet, but no one is "late".
+            // people are engaging without an opinion. Don't fall through on an
+            // opinionated verdict (.approved / .changesRequested) — when GitHub
+            // says REVIEW_REQUIRED despite such a verdict it means the verdict
+            // doesn't count toward branch protection (e.g. a non-CODEOWNER
+            // approved, or a CR was dismissed); rendering the verdict would
+            // mislead. Fall back to .open instead.
             if reviewRequestCount > 0 { return .waitingForReview }
-            if let verdict = latestReviewVerdict { return verdict.authoredStatus }
+            if latestReviewVerdict == .commented { return .commented }
             return .open
         case .none:
+            // No branch-protection rule requires review. We can't reliably
+            // distinguish "approver re-requested" (#41) from "new reviewer
+            // added to an approved PR" (#658-class) without cross-referencing
+            // reviewer logins, so default to "pending request wins" since
+            // re-request after addressing comments is the common case in
+            // unprotected repos.
             if reviewRequestCount > 0 { return .waitingForReview }
             return latestReviewVerdict?.authoredStatus ?? .open
         }

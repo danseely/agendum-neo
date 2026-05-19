@@ -63,6 +63,22 @@ struct ModelTests {
             reviewRequestCount: 0,
             latestReviewVerdict: nil
         ) == .open)
+        // REVIEW_REQUIRED with an .approved verdict but no pending request:
+        // GitHub says the approval doesn't satisfy branch protection (e.g. a
+        // non-CODEOWNER approved while CODEOWNER review is required). Don't
+        // render the verdict — it would mislead. Fall back to .open.
+        #expect(PullRequest.deriveAuthoredStatus(
+            reviewDecision: .reviewRequired,
+            reviewRequestCount: 0,
+            latestReviewVerdict: .approved
+        ) == .open)
+        // Same shape for a dismissed CHANGES_REQUESTED still visible in
+        // latestReviews: the verdict no longer counts, so don't render it.
+        #expect(PullRequest.deriveAuthoredStatus(
+            reviewDecision: .reviewRequired,
+            reviewRequestCount: 0,
+            latestReviewVerdict: .changesRequested
+        ) == .open)
     }
 
     @Test("Authored PR status falls back to verdict + request count when reviewDecision is nil")
