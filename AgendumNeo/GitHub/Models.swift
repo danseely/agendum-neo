@@ -50,6 +50,15 @@ enum PRReviewState: String, Sendable, Codable {
     case pending = "PENDING"
 }
 
+// Mirrors GitHub's PullRequestReviewDecision enum. Null when the repo has no
+// branch-protection rule requiring review, in which case we fall back to the
+// verdict + request-count heuristic.
+enum PRReviewDecision: String, Sendable, Codable {
+    case approved = "APPROVED"
+    case changesRequested = "CHANGES_REQUESTED"
+    case reviewRequired = "REVIEW_REQUIRED"
+}
+
 enum PRReviewStatus: String, Sendable, Codable {
     case reviewRequested
 }
@@ -70,20 +79,52 @@ struct PullRequest: Sendable, Hashable, Identifiable, Codable {
     let updatedAt: Date
     let reviewRequestCount: Int
     let latestReviewVerdict: PRReviewVerdict?
+    let reviewDecision: PRReviewDecision?
 
     var authoredStatus: PRAuthoredStatus {
         Self.deriveAuthoredStatus(
+            reviewDecision: reviewDecision,
             reviewRequestCount: reviewRequestCount,
             latestReviewVerdict: latestReviewVerdict
         )
     }
 
+    // GitHub's `reviewDecision` already encodes the right precedence (approval
+    // survives adding new reviewers, re-requesting a dismissed approver flips
+    // back to REVIEW_REQUIRED), so prefer it when present. It is null on PRs
+    // in repos without a branch-protection rule requiring review — in that
+    // case fall back to a pending-request-wins heuristic so issue #41
+    // (re-request after a prior verdict) still reads as "waiting".
     static func deriveAuthoredStatus(
+        reviewDecision: PRReviewDecision?,
         reviewRequestCount: Int,
         latestReviewVerdict: PRReviewVerdict?
     ) -> PRAuthoredStatus {
-        if reviewRequestCount > 0 { return .waitingForReview }
-        return latestReviewVerdict?.authoredStatus ?? .open
+        switch reviewDecision {
+        case .approved: return .approved
+        case .changesRequested: return .changesRequested
+        case .reviewRequired:
+            // Required review not yet satisfied. A pending request means we're
+            // actively waiting on someone; a commented verdict surfaces that
+            // people are engaging without an opinion. Don't fall through on an
+            // opinionated verdict (.approved / .changesRequested) — when GitHub
+            // says REVIEW_REQUIRED despite such a verdict it means the verdict
+            // doesn't count toward branch protection (e.g. a non-CODEOWNER
+            // approved, or a CR was dismissed); rendering the verdict would
+            // mislead. Fall back to .open instead.
+            if reviewRequestCount > 0 { return .waitingForReview }
+            if latestReviewVerdict == .commented { return .commented }
+            return .open
+        case .none:
+            // No branch-protection rule requires review. We can't reliably
+            // distinguish "approver re-requested" (#41) from "new reviewer
+            // added to an approved PR" (#658-class) without cross-referencing
+            // reviewer logins, so default to "pending request wins" since
+            // re-request after addressing comments is the common case in
+            // unprotected repos.
+            if reviewRequestCount > 0 { return .waitingForReview }
+            return latestReviewVerdict?.authoredStatus ?? .open
+        }
     }
 
     // CHANGES_REQUESTED beats APPROVED beats COMMENTED, matching GitHub's own
