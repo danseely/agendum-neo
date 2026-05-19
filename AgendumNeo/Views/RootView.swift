@@ -232,7 +232,8 @@ struct RootView: View {
                 }
                 .help(item.title)
             }
-            .width(min: 100, ideal: 280, max: 380)
+            // No max: Title absorbs leftover horizontal space (e.g. when zoomed in).
+            .width(min: 100, ideal: 280)
 
             TableColumn("Author") { item in
                 Text(item.author)
