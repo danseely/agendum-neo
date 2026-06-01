@@ -170,7 +170,9 @@ private struct SearchNode: Decodable {
     let authorName: String?
     let repository: String?
     let reviewRequestsTotal: Int?
+    let pendingReviewerLogins: [String]
     let latestReviewStates: [PRReviewState]
+    let reviewedByLogins: [String]
     let reviewDecision: PRReviewDecision?
 
     private enum CodingKeys: String, CodingKey {
@@ -183,11 +185,24 @@ private struct SearchNode: Decodable {
         let name: String?
     }
     private struct RepoBox: Decodable { let nameWithOwner: String }
-    private struct CountBox: Decodable { let totalCount: Int }
+    private struct AuthorLoginBox: Decodable { let login: String? }
     // `PullRequestReview.state` is NON_NULL in the GraphQL schema; a null
     // would indicate a server/schema break and should fail the decode loudly.
-    private struct ReviewNodeBox: Decodable { let state: String }
+    private struct ReviewNodeBox: Decodable {
+        let state: String
+        let author: AuthorLoginBox?
+    }
     private struct ReviewListBox: Decodable { let nodes: [ReviewNodeBox]? }
+    private struct RequestedReviewerBox: Decodable {
+        let typename: String
+        let login: String?   // present only for User
+        enum CodingKeys: String, CodingKey { case typename = "__typename", login }
+    }
+    private struct ReviewRequestNodeBox: Decodable { let requestedReviewer: RequestedReviewerBox? }
+    private struct ReviewRequestsBox: Decodable {
+        let totalCount: Int
+        let nodes: [ReviewRequestNodeBox]?
+    }
 
     init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -202,10 +217,16 @@ private struct SearchNode: Decodable {
         self.authorLogin = author?.login
         self.authorName = author?.name
         self.repository = (try c.decodeIfPresent(RepoBox.self, forKey: .repository))?.nameWithOwner
-        self.reviewRequestsTotal = (try c.decodeIfPresent(CountBox.self, forKey: .reviewRequests))?.totalCount
+        let reviewRequests = try c.decodeIfPresent(ReviewRequestsBox.self, forKey: .reviewRequests)
+        self.reviewRequestsTotal = reviewRequests?.totalCount
+        self.pendingReviewerLogins = reviewRequests?.nodes?.compactMap { node in
+            guard let reviewer = node.requestedReviewer, reviewer.typename == "User" else { return nil }
+            return reviewer.login
+        } ?? []
         let reviews = try c.decodeIfPresent(ReviewListBox.self, forKey: .latestReviews)
         // Unknown raw states (future GitHub additions) are skipped rather than failing the decode.
         self.latestReviewStates = reviews?.nodes?.compactMap { PRReviewState(rawValue: $0.state) } ?? []
+        self.reviewedByLogins = reviews?.nodes?.compactMap { $0.author?.login } ?? []
         // reviewDecision is nullable in the schema (e.g. no required-review
         // branch protection); an unknown future raw value falls back to nil
         // and is logged so a silent mis-render against a new GitHub state
@@ -235,7 +256,11 @@ private struct SearchNode: Decodable {
             updatedAt: updatedAt,
             reviewRequestCount: reviewRequestsTotal ?? 0,
             latestReviewVerdict: PullRequest.deriveReviewVerdict(latestReviewStates: latestReviewStates),
-            reviewDecision: reviewDecision
+            reviewDecision: reviewDecision,
+            reReviewRequested: PullRequest.deriveReReviewRequested(
+                pendingReviewerLogins: pendingReviewerLogins,
+                reviewedByLogins: reviewedByLogins
+            )
         )
     }
 

@@ -26,34 +26,39 @@ struct ModelTests {
         #expect(PullRequest.deriveAuthoredStatus(
             reviewDecision: .approved,
             reviewRequestCount: 1,
-            latestReviewVerdict: .approved
+            latestReviewVerdict: .approved,
+            reReviewRequested: false
         ) == .approved)
         // reviewDecision dominates a stale CHANGES_REQUESTED on a latest review
         // (e.g. when GitHub considers it dismissed by branch-protection rules).
         #expect(PullRequest.deriveAuthoredStatus(
             reviewDecision: .approved,
             reviewRequestCount: 0,
-            latestReviewVerdict: .changesRequested
+            latestReviewVerdict: .changesRequested,
+            reReviewRequested: false
         ) == .approved)
         #expect(PullRequest.deriveAuthoredStatus(
             reviewDecision: .changesRequested,
             reviewRequestCount: 0,
-            latestReviewVerdict: .approved
+            latestReviewVerdict: .approved,
+            reReviewRequested: false
         ) == .changesRequested)
         // Regression for issue #41: a re-request that flips reviewDecision back
         // to REVIEW_REQUIRED reads as "waiting" even if the prior approval is
-        // still in latestReviews.
+        // still in latestReviews. Now disambiguated by reReviewRequested=true.
         #expect(PullRequest.deriveAuthoredStatus(
             reviewDecision: .reviewRequired,
             reviewRequestCount: 1,
-            latestReviewVerdict: .approved
+            latestReviewVerdict: .approved,
+            reReviewRequested: true
         ) == .waitingForReview)
         // REVIEW_REQUIRED with no pending request but a commented verdict
         // surfaces the commented state.
         #expect(PullRequest.deriveAuthoredStatus(
             reviewDecision: .reviewRequired,
             reviewRequestCount: 0,
-            latestReviewVerdict: .commented
+            latestReviewVerdict: .commented,
+            reReviewRequested: false
         ) == .commented)
         // REVIEW_REQUIRED with no pending request and no verdict reads as open:
         // branch protection requires review eventually, but no one has been
@@ -61,7 +66,8 @@ struct ModelTests {
         #expect(PullRequest.deriveAuthoredStatus(
             reviewDecision: .reviewRequired,
             reviewRequestCount: 0,
-            latestReviewVerdict: nil
+            latestReviewVerdict: nil,
+            reReviewRequested: false
         ) == .open)
         // REVIEW_REQUIRED with an .approved verdict but no pending request:
         // GitHub says the approval doesn't satisfy branch protection (e.g. a
@@ -70,42 +76,134 @@ struct ModelTests {
         #expect(PullRequest.deriveAuthoredStatus(
             reviewDecision: .reviewRequired,
             reviewRequestCount: 0,
-            latestReviewVerdict: .approved
+            latestReviewVerdict: .approved,
+            reReviewRequested: false
         ) == .open)
         // Same shape for a dismissed CHANGES_REQUESTED still visible in
         // latestReviews: the verdict no longer counts, so don't render it.
         #expect(PullRequest.deriveAuthoredStatus(
             reviewDecision: .reviewRequired,
             reviewRequestCount: 0,
-            latestReviewVerdict: .changesRequested
+            latestReviewVerdict: .changesRequested,
+            reReviewRequested: false
         ) == .open)
     }
 
     @Test("Authored PR status falls back to verdict + request count when reviewDecision is nil")
     func authoredPRStatusFallback() {
         // reviewDecision is null on repos without branch-protection requiring
-        // review. Fall back to: pending request wins, else verdict, else open.
+        // review. Fall back to: re-request wins, else verdict, else pending
+        // request wins, else open.
         #expect(PullRequest.deriveAuthoredStatus(
-            reviewDecision: nil, reviewRequestCount: 0, latestReviewVerdict: nil
+            reviewDecision: nil, reviewRequestCount: 0, latestReviewVerdict: nil,
+            reReviewRequested: false
         ) == .open)
         #expect(PullRequest.deriveAuthoredStatus(
-            reviewDecision: nil, reviewRequestCount: 2, latestReviewVerdict: nil
+            reviewDecision: nil, reviewRequestCount: 2, latestReviewVerdict: nil,
+            reReviewRequested: false
+        ) == .waitingForReview)
+        // Re-request of a prior approver in an unprotected repo still reads
+        // as "waiting" (issue #41, unprotected variant).
+        #expect(PullRequest.deriveAuthoredStatus(
+            reviewDecision: nil, reviewRequestCount: 1, latestReviewVerdict: .approved,
+            reReviewRequested: true
         ) == .waitingForReview)
         #expect(PullRequest.deriveAuthoredStatus(
-            reviewDecision: nil, reviewRequestCount: 1, latestReviewVerdict: .approved
+            reviewDecision: nil, reviewRequestCount: 1, latestReviewVerdict: .commented,
+            reReviewRequested: true
         ) == .waitingForReview)
         #expect(PullRequest.deriveAuthoredStatus(
-            reviewDecision: nil, reviewRequestCount: 1, latestReviewVerdict: .commented
-        ) == .waitingForReview)
-        #expect(PullRequest.deriveAuthoredStatus(
-            reviewDecision: nil, reviewRequestCount: 0, latestReviewVerdict: .approved
+            reviewDecision: nil, reviewRequestCount: 0, latestReviewVerdict: .approved,
+            reReviewRequested: false
         ) == .approved)
         #expect(PullRequest.deriveAuthoredStatus(
-            reviewDecision: nil, reviewRequestCount: 0, latestReviewVerdict: .changesRequested
+            reviewDecision: nil, reviewRequestCount: 0, latestReviewVerdict: .changesRequested,
+            reReviewRequested: false
         ) == .changesRequested)
         #expect(PullRequest.deriveAuthoredStatus(
-            reviewDecision: nil, reviewRequestCount: 0, latestReviewVerdict: .commented
+            reviewDecision: nil, reviewRequestCount: 0, latestReviewVerdict: .commented,
+            reReviewRequested: false
         ) == .commented)
+    }
+
+    @Test("Authored PR status re-review disambiguation truth table (issues #57 / #50)")
+    func authoredStatusReReviewDisambiguation() {
+        // Row 2: Steven commented, Alex pending (different reviewer). Protected
+        // repo. reReviewRequested=false → "Commented" beats the bare pending
+        // request. This is the headline issue #57 masking case.
+        #expect(PullRequest.deriveAuthoredStatus(
+            reviewDecision: .reviewRequired,
+            reviewRequestCount: 1,
+            latestReviewVerdict: .commented,
+            reReviewRequested: false
+        ) == .commented)
+
+        // Row 4: #41 re-request after a COMMENTED review (protected). The
+        // pending request is the original commenter, so reReviewRequested=true
+        // and we keep "Waiting for review" despite the stale commented verdict.
+        #expect(PullRequest.deriveAuthoredStatus(
+            reviewDecision: .reviewRequired,
+            reviewRequestCount: 1,
+            latestReviewVerdict: .commented,
+            reReviewRequested: true
+        ) == .waitingForReview)
+
+        // Row 9: unprotected re-request after a comment. Same #41 shape with
+        // reviewDecision=null. Re-request wins → "Waiting for review".
+        #expect(PullRequest.deriveAuthoredStatus(
+            reviewDecision: nil,
+            reviewRequestCount: 1,
+            latestReviewVerdict: .commented,
+            reReviewRequested: true
+        ) == .waitingForReview)
+
+        // Row 10: #50 — unprotected approved PR with a new (different)
+        // reviewer added. reReviewRequested=false so the .approved verdict
+        // wins rather than masking it as "Waiting".
+        #expect(PullRequest.deriveAuthoredStatus(
+            reviewDecision: nil,
+            reviewRequestCount: 1,
+            latestReviewVerdict: .approved,
+            reReviewRequested: false
+        ) == .approved)
+
+        // Row 11: unprotected comment back with another reviewer pending.
+        // reReviewRequested=false → "Commented" surfaces just like row 2.
+        #expect(PullRequest.deriveAuthoredStatus(
+            reviewDecision: nil,
+            reviewRequestCount: 1,
+            latestReviewVerdict: .commented,
+            reReviewRequested: false
+        ) == .commented)
+    }
+
+    @Test("deriveReReviewRequested cross-references pending and reviewed logins")
+    func reReviewRequestedDerivation() {
+        // Empty pending list → false (no one to match).
+        #expect(PullRequest.deriveReReviewRequested(
+            pendingReviewerLogins: [],
+            reviewedByLogins: ["alex"]
+        ) == false)
+        // Empty reviewed list → false (no prior reviews to match against).
+        #expect(PullRequest.deriveReReviewRequested(
+            pendingReviewerLogins: ["alex"],
+            reviewedByLogins: []
+        ) == false)
+        // Disjoint logins → false (brand-new reviewer added).
+        #expect(PullRequest.deriveReReviewRequested(
+            pendingReviewerLogins: ["alex"],
+            reviewedByLogins: ["steven"]
+        ) == false)
+        // Overlapping login → true (re-request of someone who reviewed).
+        #expect(PullRequest.deriveReReviewRequested(
+            pendingReviewerLogins: ["alex", "priya"],
+            reviewedByLogins: ["steven", "alex"]
+        ) == true)
+        // Case-insensitive match → true (GitHub logins are case-insensitive).
+        #expect(PullRequest.deriveReReviewRequested(
+            pendingReviewerLogins: ["Alex"],
+            reviewedByLogins: ["alex"]
+        ) == true)
     }
 
     @Test("Review verdict ranks changes-requested over approved over commented")
