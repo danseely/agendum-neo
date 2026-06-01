@@ -18,6 +18,22 @@ enum Queries {
     // CODEOWNERS bot fleets could in theory exceed this and silently drop
     // a CHANGES_REQUESTED from a truncated reviewer; bump the cap if that
     // ever happens in practice.
+    //
+    // `reviewRequests(first: 50)` is fetched with reviewer logins (not just
+    // a `totalCount`) so we can cross-reference against `latestReviews` to
+    // tell a re-request (same person who already reviewed, issue #41) from
+    // a brand-new reviewer added after a verdict came back (issue #50 and
+    // the Alex+Steven masking case). `totalCount` is preserved so
+    // `reviewRequestCount` stays accurate even if `nodes` truncates. Same
+    // 50-cap truncation caveat applies as with `latestReviews`.
+    //
+    // Note: `... on User { login }` is deliberately the only specialization
+    // on `requestedReviewer`. Team / Bot / Mannequin reviewers are
+    // intentionally not matched here — they can never collide with a
+    // `latestReviews` author login, so they fall through as "new pending"
+    // rather than re-requests (issue #50). Don't add `... on Team { slug }`
+    // or similar expecting it to count as a re-request without revisiting
+    // `deriveReReviewRequested`.
     static let inbox = """
     query Inbox($authored: String!, $reviewReq: String!, $issues: String!) {
       authored: search(query: $authored, type: ISSUE, first: 50) {
@@ -52,8 +68,21 @@ enum Queries {
       isDraft
       author { ...authorFields }
       repository { nameWithOwner }
-      reviewRequests(first: 1) { totalCount }
-      latestReviews(first: 50) { nodes { state } }
+      reviewRequests(first: 50) {
+        totalCount
+        nodes {
+          requestedReviewer {
+            __typename
+            ... on User { login }
+          }
+        }
+      }
+      latestReviews(first: 50) {
+        nodes {
+          state
+          author { login }
+        }
+      }
       reviewDecision
     }
 

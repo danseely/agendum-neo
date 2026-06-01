@@ -80,12 +80,14 @@ struct PullRequest: Sendable, Hashable, Identifiable, Codable {
     let reviewRequestCount: Int
     let latestReviewVerdict: PRReviewVerdict?
     let reviewDecision: PRReviewDecision?
+    let reReviewRequested: Bool
 
     var authoredStatus: PRAuthoredStatus {
         Self.deriveAuthoredStatus(
             reviewDecision: reviewDecision,
             reviewRequestCount: reviewRequestCount,
-            latestReviewVerdict: latestReviewVerdict
+            latestReviewVerdict: latestReviewVerdict,
+            reReviewRequested: reReviewRequested
         )
     }
 
@@ -93,38 +95,51 @@ struct PullRequest: Sendable, Hashable, Identifiable, Codable {
     // survives adding new reviewers, re-requesting a dismissed approver flips
     // back to REVIEW_REQUIRED), so prefer it when present. It is null on PRs
     // in repos without a branch-protection rule requiring review — in that
-    // case fall back to a pending-request-wins heuristic so issue #41
-    // (re-request after a prior verdict) still reads as "waiting".
+    // case fall back to this ordering: a re-request wins, otherwise a standing
+    // verdict, otherwise a bare pending request, otherwise open. See the
+    // in-body comments for the per-branch rationale (issues #41, #50, #57).
     static func deriveAuthoredStatus(
         reviewDecision: PRReviewDecision?,
         reviewRequestCount: Int,
-        latestReviewVerdict: PRReviewVerdict?
+        latestReviewVerdict: PRReviewVerdict?,
+        reReviewRequested: Bool
     ) -> PRAuthoredStatus {
         switch reviewDecision {
         case .approved: return .approved
         case .changesRequested: return .changesRequested
         case .reviewRequired:
-            // Required review not yet satisfied. A pending request means we're
-            // actively waiting on someone; a commented verdict surfaces that
-            // people are engaging without an opinion. Don't fall through on an
-            // opinionated verdict (.approved / .changesRequested) — when GitHub
-            // says REVIEW_REQUIRED despite such a verdict it means the verdict
-            // doesn't count toward branch protection (e.g. a non-CODEOWNER
-            // approved, or a CR was dismissed); rendering the verdict would
-            // mislead. Fall back to .open instead.
-            if reviewRequestCount > 0 { return .waitingForReview }
+            // A re-request of someone who already reviewed means we're genuinely
+            // waiting on them again (issue #41) — that beats a stale verdict.
+            if reReviewRequested { return .waitingForReview }
+            // Otherwise a returned COMMENTED verdict surfaces even if other (fresh)
+            // reviewers are still pending — the author wants to know a review came
+            // back (the Alex+Steven masking case).
             if latestReviewVerdict == .commented { return .commented }
+            if reviewRequestCount > 0 { return .waitingForReview }
             return .open
         case .none:
-            // No branch-protection rule requires review. We can't reliably
-            // distinguish "approver re-requested" (#41) from "new reviewer
-            // added to an approved PR" (#658-class) without cross-referencing
-            // reviewer logins, so default to "pending request wins" since
-            // re-request after addressing comments is the common case in
-            // unprotected repos.
+            // Same discriminator closes #50 in unprotected repos: a re-request of a
+            // prior reviewer keeps "waiting"; a new reviewer added to a PR that
+            // already has a verdict lets the verdict stand.
+            if reReviewRequested { return .waitingForReview }
+            if let verdict = latestReviewVerdict { return verdict.authoredStatus }
             if reviewRequestCount > 0 { return .waitingForReview }
-            return latestReviewVerdict?.authoredStatus ?? .open
+            return .open
         }
+    }
+
+    /// True when a pending review request targets someone who already has a
+    /// review in `latestReviews` — a re-request (issue #41), as opposed to a
+    /// brand-new reviewer who hasn't weighed in (issue #50 / #658). Used to
+    /// decide whether a returned COMMENTED verdict should surface or whether we
+    /// should keep waiting on the re-requested reviewer.
+    static func deriveReReviewRequested(
+        pendingReviewerLogins: [String],
+        reviewedByLogins: [String]
+    ) -> Bool {
+        guard !pendingReviewerLogins.isEmpty, !reviewedByLogins.isEmpty else { return false }
+        let reviewed = Set(reviewedByLogins.map { $0.lowercased() })
+        return pendingReviewerLogins.contains { reviewed.contains($0.lowercased()) }
     }
 
     // CHANGES_REQUESTED beats APPROVED beats COMMENTED, matching GitHub's own

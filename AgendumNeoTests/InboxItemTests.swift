@@ -10,7 +10,8 @@ struct InboxItemTests {
         isDraft: Bool = false,
         reviewRequestCount: Int = 0,
         latestReviewVerdict: PRReviewVerdict? = nil,
-        reviewDecision: PRReviewDecision? = nil
+        reviewDecision: PRReviewDecision? = nil,
+        reReviewRequested: Bool = false
     ) -> PullRequest {
         PullRequest(
             id: id,
@@ -23,7 +24,8 @@ struct InboxItemTests {
             updatedAt: Date(timeIntervalSince1970: 0),
             reviewRequestCount: reviewRequestCount,
             latestReviewVerdict: latestReviewVerdict,
-            reviewDecision: reviewDecision
+            reviewDecision: reviewDecision,
+            reReviewRequested: reReviewRequested
         )
     }
 

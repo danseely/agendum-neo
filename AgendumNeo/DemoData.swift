@@ -48,13 +48,30 @@ enum DemoData {
             // despite a prior approval still being in latestReviews.
             pr(9, 112, "Convert sync engine tests to Swift Testing",
                owner: owner, repo: "agendum-neo", author: "Dan",
-               draft: false, hoursAgo: 60, reqs: 1, verdict: .approved, decision: .reviewRequired),
+               draft: false, hoursAgo: 60, reqs: 1, verdict: .approved, decision: .reviewRequired,
+               reReview: true),
             // Demos PR #658-style scenario: an already-approved PR with a fresh
             // review requested from an additional reviewer. reviewDecision stays
             // APPROVED, so we keep showing "Approved" rather than reverting.
             pr(10, 108, "Bump GraphQL schema version and regenerate types",
                owner: owner, repo: "platform-api", author: "Dan",
-               draft: false, hoursAgo: 66, reqs: 1, verdict: .approved, decision: .approved)
+               draft: false, hoursAgo: 66, reqs: 1, verdict: .approved, decision: .approved),
+            // Demos issue #57: a reviewer left a COMMENTED review while a
+            // *different* reviewer is still pending. The pending reviewer never
+            // reviewed, so reReviewRequested is false and the pill surfaces
+            // "Commented" rather than masking it as "Waiting for review".
+            pr(11, 104, "Trim duplicate sync-engine fixture data",
+               owner: owner, repo: "agendum-neo", author: "Dan",
+               draft: false, hoursAgo: 70, reqs: 1, verdict: .commented, decision: .reviewRequired,
+               reReview: false),
+            // Demos issue #50: an unprotected repo where a new (different)
+            // reviewer was added to an already-approved PR. reviewDecision is
+            // null, but reReviewRequested is false so the verdict wins and we
+            // render "Approved".
+            pr(12, 102, "Polish onboarding copy for the empty inbox",
+               owner: owner, repo: "agendum-neo", author: "Dan",
+               draft: false, hoursAgo: 74, reqs: 1, verdict: .approved, decision: nil,
+               reReview: false)
         ]
 
         let reviewRequestedPRs: [PullRequest] = [
@@ -131,7 +148,8 @@ private func pr(
     hoursAgo: Double,
     reqs: Int,
     verdict: PRReviewVerdict?,
-    decision: PRReviewDecision?
+    decision: PRReviewDecision?,
+    reReview: Bool = false
 ) -> PullRequest {
     PullRequest(
         id: "DEMO-PR-\(tag)",
@@ -144,7 +162,8 @@ private func pr(
         updatedAt: Date().addingTimeInterval(-hoursAgo * 3600),
         reviewRequestCount: reqs,
         latestReviewVerdict: verdict,
-        reviewDecision: decision
+        reviewDecision: decision,
+        reReviewRequested: reReview
     )
 }
 
