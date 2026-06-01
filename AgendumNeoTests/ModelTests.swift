@@ -52,6 +52,22 @@ struct ModelTests {
             latestReviewVerdict: .approved,
             reReviewRequested: true
         ) == .waitingForReview)
+        // Row 1: REVIEW_REQUIRED with a bare pending request and no verdict
+        // reads as "waiting for review" — the protected-repo baseline before
+        // any reviewer has weighed in. Covers both the single-reviewer and
+        // multi-reviewer shapes.
+        #expect(PullRequest.deriveAuthoredStatus(
+            reviewDecision: .reviewRequired,
+            reviewRequestCount: 1,
+            latestReviewVerdict: nil,
+            reReviewRequested: false
+        ) == .waitingForReview)
+        #expect(PullRequest.deriveAuthoredStatus(
+            reviewDecision: .reviewRequired,
+            reviewRequestCount: 2,
+            latestReviewVerdict: nil,
+            reReviewRequested: false
+        ) == .waitingForReview)
         // REVIEW_REQUIRED with no pending request but a commented verdict
         // surfaces the commented state.
         #expect(PullRequest.deriveAuthoredStatus(
@@ -166,6 +182,17 @@ struct ModelTests {
             latestReviewVerdict: .approved,
             reReviewRequested: false
         ) == .approved)
+
+        // Compound: Steven commented and was re-requested while Alex is also
+        // pending (so reviewRequestCount=2). The re-request keeps us waiting
+        // and suppresses the stale commented verdict — the re-request branch
+        // beats the commented surfacing branch.
+        #expect(PullRequest.deriveAuthoredStatus(
+            reviewDecision: .reviewRequired,
+            reviewRequestCount: 2,
+            latestReviewVerdict: .commented,
+            reReviewRequested: true
+        ) == .waitingForReview)
 
         // Row 11: unprotected comment back with another reviewer pending.
         // reReviewRequested=false → "Commented" surfaces just like row 2.

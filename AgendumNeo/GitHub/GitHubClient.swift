@@ -193,6 +193,11 @@ private struct SearchNode: Decodable {
         let author: AuthorLoginBox?
     }
     private struct ReviewListBox: Decodable { let nodes: [ReviewNodeBox]? }
+    // Only User reviewers carry a `login`. Team / Bot / Mannequin requested
+    // reviewers have no User login and are intentionally treated as "new
+    // pending" rather than re-requests (per issue #50) — they can't appear in
+    // `latestReviews` author logins, so the re-request cross-reference will
+    // never match them by construction.
     private struct RequestedReviewerBox: Decodable {
         let typename: String
         let login: String?   // present only for User
@@ -219,14 +224,25 @@ private struct SearchNode: Decodable {
         self.repository = (try c.decodeIfPresent(RepoBox.self, forKey: .repository))?.nameWithOwner
         let reviewRequests = try c.decodeIfPresent(ReviewRequestsBox.self, forKey: .reviewRequests)
         self.reviewRequestsTotal = reviewRequests?.totalCount
+        // Only User reviewers feed the re-request cross-reference; Team / Bot /
+        // Mannequin requests fall through as "new pending" (issue #50).
         self.pendingReviewerLogins = reviewRequests?.nodes?.compactMap { node in
             guard let reviewer = node.requestedReviewer, reviewer.typename == "User" else { return nil }
             return reviewer.login
         } ?? []
         let reviews = try c.decodeIfPresent(ReviewListBox.self, forKey: .latestReviews)
         // Unknown raw states (future GitHub additions) are skipped rather than failing the decode.
-        self.latestReviewStates = reviews?.nodes?.compactMap { PRReviewState(rawValue: $0.state) } ?? []
-        self.reviewedByLogins = reviews?.nodes?.compactMap { $0.author?.login } ?? []
+        // `latestReviewStates` and `reviewedByLogins` are derived from the same filtered node set
+        // so a node whose raw state doesn't decode can't contribute a login (feeding the
+        // re-request cross-reference) without also contributing a verdict — avoids future drift
+        // where a half-counted reviewer flips the authored status. DISMISSED is a known state and
+        // is kept here (the dismissed-then-re-requested case still needs to read as "waiting").
+        let decodedReviewNodes = reviews?.nodes?.compactMap { node -> (PRReviewState, String?)? in
+            guard let state = PRReviewState(rawValue: node.state) else { return nil }
+            return (state, node.author?.login)
+        } ?? []
+        self.latestReviewStates = decodedReviewNodes.map { $0.0 }
+        self.reviewedByLogins = decodedReviewNodes.compactMap { $0.1 }
         // reviewDecision is nullable in the schema (e.g. no required-review
         // branch protection); an unknown future raw value falls back to nil
         // and is logged so a silent mis-render against a new GitHub state

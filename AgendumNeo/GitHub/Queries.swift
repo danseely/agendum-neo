@@ -26,6 +26,14 @@ enum Queries {
     // the Alex+Steven masking case). `totalCount` is preserved so
     // `reviewRequestCount` stays accurate even if `nodes` truncates. Same
     // 50-cap truncation caveat applies as with `latestReviews`.
+    //
+    // Note: `... on User { login }` is deliberately the only specialization
+    // on `requestedReviewer`. Team / Bot / Mannequin reviewers are
+    // intentionally not matched here — they can never collide with a
+    // `latestReviews` author login, so they fall through as "new pending"
+    // rather than re-requests (issue #50). Don't add `... on Team { slug }`
+    // or similar expecting it to count as a re-request without revisiting
+    // `deriveReReviewRequested`.
     static let inbox = """
     query Inbox($authored: String!, $reviewReq: String!, $issues: String!) {
       authored: search(query: $authored, type: ISSUE, first: 50) {

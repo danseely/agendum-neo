@@ -95,8 +95,9 @@ struct PullRequest: Sendable, Hashable, Identifiable, Codable {
     // survives adding new reviewers, re-requesting a dismissed approver flips
     // back to REVIEW_REQUIRED), so prefer it when present. It is null on PRs
     // in repos without a branch-protection rule requiring review — in that
-    // case fall back to a pending-request-wins heuristic so issue #41
-    // (re-request after a prior verdict) still reads as "waiting".
+    // case fall back to this ordering: a re-request wins, otherwise a standing
+    // verdict, otherwise a bare pending request, otherwise open. See the
+    // in-body comments for the per-branch rationale (issues #41, #50, #57).
     static func deriveAuthoredStatus(
         reviewDecision: PRReviewDecision?,
         reviewRequestCount: Int,
