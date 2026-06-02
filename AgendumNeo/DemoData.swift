@@ -11,112 +11,106 @@ enum DemoData {
         Namespace(host: "github.com", accountLogin: "danseely", owner: "agendum-labs", kind: .org)
     ]
 
+    // Curated so every status pill variant renders at least once:
+    //   Your PRs        — Open, Waiting for review, Approved, Changes requested,
+    //                     Commented, plus the DRAFT badge
+    //   Awaiting review — Review requested (incl. one draft)
+    //   Assigned issues — Open (viewer-authored) and Assigned to you
+    // The tricky review-state scenarios from issues #41, #50, and #57 are kept
+    // as live fixtures — see the per-row comments.
     static func snapshot(for namespace: Namespace) -> InboxSnapshot {
         let now = Date()
-        func hoursAgo(_ h: Double) -> Date { now.addingTimeInterval(-h * 3600) }
 
         let viewerLogin = namespace.accountLogin
         let owner = namespace.owner
 
         let authoredPRs: [PullRequest] = [
-            pr(1, 142, "Smooth out menu bar popover dismissal",
+            pr(1, 164, "Add keyboard shortcut cheat-sheet overlay",
                owner: owner, repo: "agendum-neo", author: "Dan",
-               draft: false, hoursAgo: 0.75, reqs: 0, verdict: nil, decision: nil),
-            pr(2, 141, "Refactor sync engine to a typed actor",
+               draft: false, hoursAgo: 0.5, reqs: 0, verdict: nil, decision: nil),
+            pr(2, 161, "Stream sync deltas instead of full snapshots",
+               owner: owner, repo: "platform-api", author: "Dan",
+               draft: false, hoursAgo: 3, reqs: 2, verdict: nil, decision: .reviewRequired),
+            pr(3, 158, "Adopt Liquid Glass material in the menu bar popover",
                owner: owner, repo: "agendum-neo", author: "Dan",
-               draft: false, hoursAgo: 4, reqs: 2, verdict: nil, decision: .reviewRequired),
-            pr(3, 138, "Improve test coverage for the GraphQL decoder",
+               draft: false, hoursAgo: 7, reqs: 0, verdict: .approved, decision: .approved),
+            pr(4, 154, "Spike: live PR-count badge on the Dock icon",
                owner: owner, repo: "agendum-neo", author: "Dan",
-               draft: false, hoursAgo: 20, reqs: 0, verdict: .approved, decision: .approved),
-            pr(4, 133, "Spike: rate-limit handling with retry budget",
+               draft: true, hoursAgo: 12, reqs: 0, verdict: nil, decision: nil),
+            pr(5, 151, "Cache GraphQL responses on disk between launches",
                owner: owner, repo: "ingest-pipeline", author: "Dan",
-               draft: true, hoursAgo: 28, reqs: 0, verdict: nil, decision: nil),
-            pr(5, 131, "Adopt SwiftData for cached snapshots",
-               owner: owner, repo: "agendum-neo", author: "Dan",
-               draft: false, hoursAgo: 31, reqs: 0, verdict: .changesRequested, decision: .changesRequested),
-            pr(6, 129, "Wire NSWorkspace open-URL through the new router",
-               owner: owner, repo: "agendum-neo", author: "Dan",
-               draft: false, hoursAgo: 36, reqs: 3, verdict: nil, decision: .reviewRequired),
-            pr(7, 124, "Tahoe-friendly toolbar layout",
-               owner: owner, repo: "agendum-neo", author: "Dan",
-               draft: false, hoursAgo: 44, reqs: 0, verdict: .commented, decision: .reviewRequired),
-            pr(8, 118, "Replace inline keys with a typed scheme",
-               owner: owner, repo: "platform-cli", author: "Dan",
-               draft: true, hoursAgo: 52, reqs: 0, verdict: nil, decision: nil),
+               draft: false, hoursAgo: 19, reqs: 0, verdict: .changesRequested, decision: .changesRequested),
+            pr(6, 147, "Tighten retry backoff on flaky network paths",
+               owner: owner, repo: "search-service", author: "Dan",
+               draft: false, hoursAgo: 25, reqs: 0, verdict: .commented, decision: .reviewRequired),
             // Demos issue #41: a re-request after a dismissed approval. GitHub
             // flips reviewDecision back to REVIEW_REQUIRED so we read "Waiting"
             // despite a prior approval still being in latestReviews.
-            pr(9, 112, "Convert sync engine tests to Swift Testing",
+            pr(7, 143, "Migrate snapshot persistence to SwiftData",
                owner: owner, repo: "agendum-neo", author: "Dan",
-               draft: false, hoursAgo: 60, reqs: 1, verdict: .approved, decision: .reviewRequired,
+               draft: false, hoursAgo: 31, reqs: 1, verdict: .approved, decision: .reviewRequired,
                reReview: true),
             // Demos PR #658-style scenario: an already-approved PR with a fresh
             // review requested from an additional reviewer. reviewDecision stays
             // APPROVED, so we keep showing "Approved" rather than reverting.
-            pr(10, 108, "Bump GraphQL schema version and regenerate types",
+            pr(8, 139, "Bump GraphQL schema version and regenerate types",
                owner: owner, repo: "platform-api", author: "Dan",
-               draft: false, hoursAgo: 66, reqs: 1, verdict: .approved, decision: .approved),
+               draft: false, hoursAgo: 38, reqs: 1, verdict: .approved, decision: .approved),
             // Demos issue #57: a reviewer left a COMMENTED review while a
             // *different* reviewer is still pending. The pending reviewer never
             // reviewed, so reReviewRequested is false and the pill surfaces
             // "Commented" rather than masking it as "Waiting for review".
-            pr(11, 104, "Trim duplicate sync-engine fixture data",
-               owner: owner, repo: "agendum-neo", author: "Dan",
-               draft: false, hoursAgo: 70, reqs: 1, verdict: .commented, decision: .reviewRequired,
+            pr(9, 136, "Dedupe notification fan-out in the worker pool",
+               owner: owner, repo: "ingest-pipeline", author: "Dan",
+               draft: false, hoursAgo: 46, reqs: 1, verdict: .commented, decision: .reviewRequired,
                reReview: false),
             // Demos issue #50: an unprotected repo where a new (different)
             // reviewer was added to an already-approved PR. reviewDecision is
             // null, but reReviewRequested is false so the verdict wins and we
             // render "Approved".
-            pr(12, 102, "Polish onboarding copy for the empty inbox",
+            pr(10, 132, "Polish onboarding copy for the empty inbox",
                owner: owner, repo: "agendum-neo", author: "Dan",
-               draft: false, hoursAgo: 74, reqs: 1, verdict: .approved, decision: nil,
+               draft: false, hoursAgo: 53, reqs: 1, verdict: .approved, decision: nil,
                reReview: false)
         ]
 
         let reviewRequestedPRs: [PullRequest] = [
-            pr(101, 217, "Migrate auth middleware off legacy session store",
+            pr(101, 233, "Roll session tokens without dropping live syncs",
                owner: owner, repo: "platform-api", author: "Alice",
-               draft: false, hoursAgo: 2, reqs: 1, verdict: nil, decision: .reviewRequired),
-            pr(102, 215, "Drop deprecated webhook adapter",
-               owner: owner, repo: "platform-api", author: "Bob",
-               draft: false, hoursAgo: 9, reqs: 1, verdict: nil, decision: .reviewRequired),
-            pr(103, 213, "Lower P95 on /v2/search by 40%",
+               draft: false, hoursAgo: 1.5, reqs: 1, verdict: nil, decision: .reviewRequired),
+            pr(102, 229, "Shard the search index by namespace",
                owner: owner, repo: "search-service", author: "Priya",
-               draft: false, hoursAgo: 13, reqs: 1, verdict: nil, decision: .reviewRequired),
-            pr(104, 210, "Adopt structured logging across workers",
+               draft: false, hoursAgo: 8, reqs: 1, verdict: nil, decision: .reviewRequired),
+            pr(103, 226, "Queue-depth autoscaling for ingest workers",
                owner: owner, repo: "ingest-pipeline", author: "Mei",
-               draft: false, hoursAgo: 18, reqs: 1, verdict: nil, decision: .reviewRequired),
-            pr(105, 208, "Cache invalidation on namespace switch",
+               draft: true, hoursAgo: 15, reqs: 1, verdict: nil, decision: .reviewRequired),
+            pr(104, 222, "Replace cron reconciler with event-driven sync",
                owner: owner, repo: "platform-api", author: "Jonah",
-               draft: false, hoursAgo: 26, reqs: 1, verdict: nil, decision: .reviewRequired),
-            pr(106, 205, "Backfill retention-window field",
-               owner: owner, repo: "platform-api", author: "Sasha",
-               draft: false, hoursAgo: 40, reqs: 1, verdict: nil, decision: .reviewRequired)
+               draft: false, hoursAgo: 23, reqs: 1, verdict: nil, decision: .reviewRequired),
+            pr(105, 218, "Expose rate-limit headroom in /healthz",
+               owner: owner, repo: "platform-cli", author: "Sasha",
+               draft: false, hoursAgo: 35, reqs: 1, verdict: nil, decision: .reviewRequired)
         ]
 
         let assignedIssues: [Issue] = [
-            issue(1, 47, "Tokens cached past expiry on sleep/wake",
+            issue(1, 61, "Menu bar count lags one sync behind the window",
                   owner: owner, repo: "agendum-neo",
-                  author: "Dan", authorLogin: viewerLogin, hoursAgo: 1.5),
-            issue(2, 33, "Crash when switching namespaces during sync",
+                  author: "Dan", authorLogin: viewerLogin, hoursAgo: 2),
+            issue(2, 58, "Namespace picker loses selection after wake from sleep",
                   owner: owner, repo: "agendum-neo",
-                  author: "Carol", authorLogin: "carol", hoursAgo: 6),
-            issue(3, 31, "Footer 'last synced' clock drifts after sleep",
+                  author: "Carol", authorLogin: "carol", hoursAgo: 5),
+            issue(3, 55, "Add an option to mute a repo from the inbox",
                   owner: owner, repo: "agendum-neo",
-                  author: "Dan", authorLogin: viewerLogin, hoursAgo: 14),
-            issue(4, 29, "DMG drag-to-Applications target hit area too small",
+                  author: "Dan", authorLogin: viewerLogin, hoursAgo: 11),
+            issue(4, 52, "Status pills clip at the largest accessibility text size",
                   owner: owner, repo: "agendum-neo",
-                  author: "Eli", authorLogin: "eli", hoursAgo: 22),
-            issue(5, 27, "Add a 'reveal in Finder' affordance for the bundle",
+                  author: "Riya", authorLogin: "riya", hoursAgo: 21),
+            issue(5, 49, "Sync stalls when gh token expires mid-flight",
                   owner: owner, repo: "agendum-neo",
-                  author: "Dan", authorLogin: viewerLogin, hoursAgo: 33),
-            issue(6, 24, "Status pills should support reduced-motion",
+                  author: "Dan", authorLogin: viewerLogin, hoursAgo: 30),
+            issue(6, 44, "Double-click row opens two browser tabs on Tahoe",
                   owner: owner, repo: "agendum-neo",
-                  author: "Riya", authorLogin: "riya", hoursAgo: 42),
-            issue(7, 21, "Investigate flaky gh-cli probe on first launch",
-                  owner: owner, repo: "agendum-neo",
-                  author: "Tomas", authorLogin: "tomas", hoursAgo: 55)
+                  author: "Tomas", authorLogin: "tomas", hoursAgo: 41)
         ]
 
         return InboxSnapshot(
@@ -126,14 +120,6 @@ enum DemoData {
             reviewRequestedPRs: reviewRequestedPRs,
             assignedIssues: assignedIssues
         )
-    }
-
-    private static func prURL(owner: String, repo: String, number: Int) -> URL {
-        URL(string: "https://github.com/\(owner)/\(repo)/pull/\(number)")!
-    }
-
-    private static func issueURL(owner: String, repo: String, number: Int) -> URL {
-        URL(string: "https://github.com/\(owner)/\(repo)/issues/\(number)")!
     }
 }
 
