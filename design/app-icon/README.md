@@ -8,6 +8,8 @@ README art).
 
 ## Shipped icon (v0.5.7)
 
+<img src="../../Resources/AppIcon-1024.png" width="220" alt="Agendum Neo app icon"/>
+
 An eight-row inbox that fades and bleeds off the top and bottom edges. The
 bright center pair is **Waiting** (amber `#ffaa00`) and **Changes requested**
 (red `#f87171`); higher-chroma colors are placed at the dimmed top/bottom edges
