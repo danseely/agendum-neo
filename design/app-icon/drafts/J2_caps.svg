@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs><clipPath id="sq"><rect x="48" y="48" width="928" height="928" rx="205" ry="205"/></clipPath></defs>
+  <rect x="48" y="48" width="928" height="928" rx="205" ry="205" fill="#161b22"/>
+  <g clip-path="url(#sq)">
+  <clipPath id="card0"><rect x="140" y="-45.0" width="760" height="120" rx="36" ry="36"/></clipPath>
+  <rect x="140" y="-45.0" width="760" height="120" rx="36" fill="#171c23"/>
+  <rect x="140" y="-45.0" width="33" height="120" fill="#181a1d" clip-path="url(#card0)"/>
+  <rect x="172" y="-31.5" width="421" height="39" rx="19.5" fill="#181d24"/>
+  <rect x="172" y="26.5" width="281" height="31" rx="15.5" fill="#181a1d"/>
+  <clipPath id="card1"><rect x="140" y="97.0" width="760" height="120" rx="36" ry="36"/></clipPath>
+  <rect x="140" y="97.0" width="760" height="120" rx="36" fill="#181d24"/>
+  <rect x="140" y="97.0" width="33" height="120" fill="#1b1628" clip-path="url(#card1)"/>
+  <rect x="172" y="110.5" width="511" height="39" rx="19.5" fill="#1a1f26"/>
+  <rect x="172" y="168.5" width="341" height="31" rx="15.5" fill="#1b1628"/>
+  <clipPath id="card2"><rect x="140" y="239.0" width="760" height="120" rx="36" ry="36"/></clipPath>
+  <rect x="140" y="239.0" width="760" height="120" rx="36" fill="#1c2128"/>
+  <rect x="140" y="239.0" width="33" height="120" fill="#946300" clip-path="url(#card2)"/>
+  <rect x="172" y="252.5" width="365" height="39" rx="19.5" fill="#252b32"/>
+  <rect x="172" y="310.5" width="239" height="31" rx="15.5" fill="#946300"/>
+  <clipPath id="card3"><rect x="140" y="381.0" width="760" height="120" rx="36" ry="36"/></clipPath>
+  <rect x="140" y="381.0" width="760" height="120" rx="36" fill="#21262d"/>
+  <rect x="140" y="381.0" width="33" height="120" fill="#60a5fa" clip-path="url(#card3)"/>
+  <rect x="172" y="394.5" width="421" height="39" rx="19.5" fill="#30363d"/>
+  <rect x="172" y="452.5" width="281" height="31" rx="15.5" fill="#60a5fa"/>
+  <clipPath id="card4"><rect x="140" y="523.0" width="760" height="120" rx="36" ry="36"/></clipPath>
+  <rect x="140" y="523.0" width="760" height="120" rx="36" fill="#21262d"/>
+  <rect x="140" y="523.0" width="33" height="120" fill="#4ade80" clip-path="url(#card4)"/>
+  <rect x="172" y="536.5" width="511" height="39" rx="19.5" fill="#30363d"/>
+  <rect x="172" y="594.5" width="341" height="31" rx="15.5" fill="#4ade80"/>
+  <clipPath id="card5"><rect x="140" y="665.0" width="760" height="120" rx="36" ry="36"/></clipPath>
+  <rect x="140" y="665.0" width="760" height="120" rx="36" fill="#1c2128"/>
+  <rect x="140" y="665.0" width="33" height="120" fill="#904242" clip-path="url(#card5)"/>
+  <rect x="172" y="678.5" width="365" height="39" rx="19.5" fill="#252b32"/>
+  <rect x="172" y="736.5" width="239" height="31" rx="15.5" fill="#904242"/>
+  <clipPath id="card6"><rect x="140" y="807.0" width="760" height="120" rx="36" ry="36"/></clipPath>
+  <rect x="140" y="807.0" width="760" height="120" rx="36" fill="#181d24"/>
+  <rect x="140" y="807.0" width="33" height="120" fill="#07221f" clip-path="url(#card6)"/>
+  <rect x="172" y="820.5" width="421" height="39" rx="19.5" fill="#1a1f26"/>
+  <rect x="172" y="878.5" width="281" height="31" rx="15.5" fill="#07221f"/>
+  <clipPath id="card7"><rect x="140" y="949.0" width="760" height="120" rx="36" ry="36"/></clipPath>
+  <rect x="140" y="949.0" width="760" height="120" rx="36" fill="#171c23"/>
+  <rect x="140" y="949.0" width="33" height="120" fill="#181a1d" clip-path="url(#card7)"/>
+  <rect x="172" y="962.5" width="511" height="39" rx="19.5" fill="#181d24"/>
+  <rect x="172" y="1020.5" width="341" height="31" rx="15.5" fill="#181a1d"/>
+  
+  </g>
+</svg>
