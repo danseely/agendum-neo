@@ -2,6 +2,12 @@
 
 1280×640 OG images used when the repo URL is shared on Slack, Twitter, iMessage, etc.
 
+## In context
+
+How the dark variant unfurls when the repo URL is pasted into Slack:
+
+![Slack unfurl of the agendum-neo repo URL showing the GitHub link preview with the dark social-preview image](slack-unfurl.png)
+
 ## Variants
 
 ### Dark
