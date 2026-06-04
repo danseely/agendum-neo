@@ -29,6 +29,19 @@ struct InboxItemTests {
         )
     }
 
+    private func makeReview(
+        id: String = "PR_1",
+        status: ReviewRowStatus = .reviewRequested,
+        syncsRemaining: Int = 0,
+        isDraft: Bool = false
+    ) -> ReviewInboxPR {
+        ReviewInboxPR(
+            pullRequest: makePR(id: id, isDraft: isDraft),
+            status: status,
+            syncsRemaining: syncsRemaining
+        )
+    }
+
     private func makeIssue(id: String = "ISSUE_1") -> AgendumNeo.Issue {
         AgendumNeo.Issue(
             id: id,
@@ -48,10 +61,10 @@ struct InboxItemTests {
         #expect(InboxItem.authoredPR(pr).id == .pr(pr.id))
     }
 
-    @Test("reviewRequestedPR id matches .pr(pr.id)")
-    func reviewRequestedPR_id_matchesPRItemID() {
-        let pr = makePR(id: "PR_R")
-        #expect(InboxItem.reviewRequestedPR(pr).id == .pr(pr.id))
+    @Test("reviewPR id matches .pr(pr.id)")
+    func reviewPR_id_matchesPRItemID() {
+        let review = makeReview(id: "PR_R")
+        #expect(InboxItem.reviewPR(review).id == .pr(review.pullRequest.id))
     }
 
     @Test("issue id matches .issue(issue.id)")
@@ -68,7 +81,8 @@ struct InboxItemTests {
 
         #expect(InboxItem.authoredPR(draftPR).title == draftPR.title)
         #expect(InboxItem.authoredPR(draftPR).isDraftPR == true)
-        #expect(InboxItem.reviewRequestedPR(nonDraftPR).isDraftPR == false)
+        #expect(InboxItem.reviewPR(makeReview(id: nonDraftPR.id, isDraft: false)).isDraftPR == false)
+        #expect(InboxItem.reviewPR(makeReview(isDraft: true)).isDraftPR == true)
         #expect(InboxItem.issue(issue, viewerLogin: nil).title == issue.title)
         #expect(InboxItem.issue(issue, viewerLogin: nil).isDraftPR == false)
     }
@@ -114,18 +128,25 @@ struct InboxItemTests {
         #expect(InboxItem.authoredPR(commented).statusColor == StatusPalette.commented)
     }
 
-    @Test("reviewRequestedPR always reads 'Review requested' regardless of PR state")
-    func reviewRequestedPRStatus() {
-        // PR state shouldn't affect the review-requested pill — it's a fixed
-        // label/color tied to the case, not the underlying PR's authored
-        // status.
-        let openPR = makePR()
-        let approvedPR = makePR(reviewDecision: .approved)
+    @Test("reviewPR pill follows the row status, not the underlying PR state")
+    func reviewPRStatus() {
+        // The underlying PR's authored state shouldn't affect the review-section
+        // pill — the label/color is tied to the row's ReviewRowStatus.
+        let requested = ReviewInboxPR(
+            pullRequest: makePR(reviewDecision: .approved),
+            status: .reviewRequested,
+            syncsRemaining: 0
+        )
+        let reviewed = ReviewInboxPR(
+            pullRequest: makePR(reviewDecision: .approved),
+            status: .reviewed,
+            syncsRemaining: 2
+        )
 
-        #expect(InboxItem.reviewRequestedPR(openPR).statusText == "Review requested")
-        #expect(InboxItem.reviewRequestedPR(openPR).statusColor == StatusPalette.reviewRequested)
-        #expect(InboxItem.reviewRequestedPR(approvedPR).statusText == "Review requested")
-        #expect(InboxItem.reviewRequestedPR(approvedPR).statusColor == StatusPalette.reviewRequested)
+        #expect(InboxItem.reviewPR(requested).statusText == "Review requested")
+        #expect(InboxItem.reviewPR(requested).statusColor == StatusPalette.reviewRequested)
+        #expect(InboxItem.reviewPR(reviewed).statusText == "Reviewed")
+        #expect(InboxItem.reviewPR(reviewed).statusColor == StatusPalette.reviewed)
     }
 
     @Test("issue statusText / statusColor cover every IssueStatus case")

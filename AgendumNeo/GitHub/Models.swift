@@ -59,8 +59,25 @@ enum PRReviewDecision: String, Sendable, Codable {
     case reviewRequired = "REVIEW_REQUIRED"
 }
 
-enum PRReviewStatus: String, Sendable, Codable {
+/// Lifecycle status of a row in the "Awaiting your review" section. A PR enters
+/// as `.reviewRequested` (GitHub is asking for your review); once you submit
+/// your review it leaves GitHub's `review-requested:@me` search, and we surface
+/// it as `.reviewed` for a couple of sync cycles so the completion is visible
+/// before the row drops off. See `ReviewSectionReconciler` and issue #69.
+enum ReviewRowStatus: String, Sendable, Codable {
     case reviewRequested
+    case reviewed
+}
+
+/// A row in the "Awaiting your review" section, pairing the underlying PR with
+/// its review-section lifecycle state. `syncsRemaining` is only meaningful for
+/// `.reviewed` rows — it counts the lingering window down each sync (issue #69).
+struct ReviewInboxPR: Sendable, Hashable, Codable, Identifiable {
+    let pullRequest: PullRequest
+    let status: ReviewRowStatus
+    let syncsRemaining: Int
+
+    var id: String { pullRequest.id }
 }
 
 enum IssueStatus: String, Sendable, Codable {

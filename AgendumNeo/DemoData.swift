@@ -14,7 +14,8 @@ enum DemoData {
     // Curated so every status pill variant renders at least once:
     //   Your PRs        — Open, Waiting for review, Approved, Changes requested,
     //                     Commented, plus the DRAFT badge
-    //   Awaiting review — Review requested (incl. one draft)
+    //   Awaiting review — Review requested (incl. one draft); the lingering
+    //                     "Reviewed" row is added by `reviewSection(for:)`.
     //   Assigned issues — Open (viewer-authored) and Assigned to you
     // The tricky review-state scenarios from issues #41, #50, and #57 are kept
     // as live fixtures — see the per-row comments.
@@ -120,6 +121,30 @@ enum DemoData {
             reviewRequestedPRs: reviewRequestedPRs,
             assignedIssues: assignedIssues
         )
+    }
+
+    /// The displayed "Awaiting your review" section for demo mode: every fetched
+    /// review request plus one PR you've already reviewed, lingering for a
+    /// couple of sync cycles before it drops off (issue #69). In live mode this
+    /// list is produced by `ReviewSectionReconciler`; demo hand-builds it so the
+    /// `Reviewed` pill renders without needing a real sync transition.
+    static func reviewSection(for namespace: Namespace) -> [ReviewInboxPR] {
+        let requested = snapshot(for: namespace).reviewRequestedPRs.map {
+            ReviewInboxPR(pullRequest: $0, status: .reviewRequested, syncsRemaining: 0)
+        }
+        // A teammate's PR you reviewed last cycle — request fulfilled (reqs: 0),
+        // now winding down its lingering window.
+        let reviewedPR = pr(
+            106, 214, "Backfill audit log for pre-migration sync runs",
+            owner: namespace.owner, repo: "ingest-pipeline", author: "Devon",
+            draft: false, hoursAgo: 4, reqs: 0, verdict: nil, decision: nil
+        )
+        let reviewed = ReviewInboxPR(
+            pullRequest: reviewedPR,
+            status: .reviewed,
+            syncsRemaining: ReviewSectionReconciler.lingerSyncs
+        )
+        return requested + [reviewed]
     }
 }
 

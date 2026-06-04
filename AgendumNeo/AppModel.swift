@@ -9,6 +9,14 @@ final class AppModel {
     var activeNamespace: Namespace?
 
     var snapshot: InboxSnapshot?
+
+    /// The displayed "Awaiting your review" section. Distinct from
+    /// `snapshot.reviewRequestedPRs` (the raw fetch) because it also carries
+    /// recently-reviewed PRs that linger for a couple of sync cycles after they
+    /// leave GitHub's requested set (issue #69). Maintained across syncs by the
+    /// `ReviewSectionReconciler`.
+    private(set) var reviewSection: [ReviewInboxPR] = []
+
     var lastError: String?
     var isLoading: Bool = false
     var lastSyncedAt: Date?
@@ -74,10 +82,22 @@ final class AppModel {
         activeNamespace = chosen
         if let chosen {
             snapshot = DemoData.snapshot(for: chosen)
+            reviewSection = DemoData.reviewSection(for: chosen)
             lastSyncedAt = Date()
         }
         lastError = nil
         hasCompletedFirstSync = true
+    }
+
+    /// Apply a freshly-fetched snapshot, reconciling the review section so
+    /// recently-reviewed PRs linger for a couple of sync cycles before dropping
+    /// off the "Awaiting your review" list (issue #69).
+    func ingest(_ newSnapshot: InboxSnapshot) {
+        reviewSection = ReviewSectionReconciler.reconcile(
+            previous: reviewSection,
+            fetched: newSnapshot.reviewRequestedPRs
+        )
+        snapshot = newSnapshot
     }
 
     func loadNamespaces() async {
@@ -127,12 +147,16 @@ final class AppModel {
         activeNamespace = namespace
         if DemoData.isEnabled {
             snapshot = DemoData.snapshot(for: namespace)
+            reviewSection = DemoData.reviewSection(for: namespace)
             lastSyncedAt = Date()
             lastError = nil
             return
         }
         defaults.set(namespace.id, forKey: Self.selectedNamespaceKey)
         snapshot = nil
+        // Lingering reviewed rows belong to the namespace that produced them;
+        // start the new namespace with a clean review section (issue #69).
+        reviewSection = []
         lastSyncedAt = nil
         lastError = nil
         sync.start(namespace: namespace)
@@ -145,6 +169,7 @@ final class AppModel {
             try? await Task.sleep(for: .seconds(4))
             if let ns = activeNamespace {
                 snapshot = DemoData.snapshot(for: ns)
+                reviewSection = DemoData.reviewSection(for: ns)
                 lastSyncedAt = Date()
             }
             return
