@@ -163,7 +163,7 @@ struct RootView: View {
             ?? InboxWindowHeight.fallbackScreenHeight
         return InboxWindowHeight.compute(
             authoredPRCount: app.snapshot?.authoredPRs.count ?? 0,
-            reviewRequestedPRCount: app.snapshot?.reviewRequestedPRs.count ?? 0,
+            reviewRequestedPRCount: app.reviewSection.count,
             assignedIssueCount: app.snapshot?.assignedIssues.count ?? 0,
             screenVisibleHeight: screenHeight
         )
@@ -299,7 +299,7 @@ struct RootView: View {
                         .contextMenu { linkContextMenu(url: item.url) }
                 }
             } header: {
-                SectionHeader(title: "Awaiting your review", count: reviewRequestedPRs.count)
+                SectionHeader(title: "Awaiting your review", count: reviewSection.count)
             }
 
             Section {
@@ -340,7 +340,7 @@ struct RootView: View {
 
     private var orderedItemIDs: [InboxItemID] {
         authoredPRs.map { .pr($0.id) }
-        + reviewRequestedPRs.map { .pr($0.id) }
+        + reviewSection.map { .pr($0.id) }
         + assignedIssues.map { .issue($0.id) }
     }
 
@@ -351,7 +351,7 @@ struct RootView: View {
     }
 
     private var reviewItems: [InboxItem] {
-        reviewRequestedPRs.map(InboxItem.reviewRequestedPR)
+        reviewSection.map(InboxItem.reviewPR)
     }
 
     private var issueItems: [InboxItem] {
@@ -364,8 +364,8 @@ struct RootView: View {
         app.snapshot?.authoredPRs ?? []
     }
 
-    private var reviewRequestedPRs: [PullRequest] {
-        app.snapshot?.reviewRequestedPRs ?? []
+    private var reviewSection: [ReviewInboxPR] {
+        app.reviewSection
     }
 
     private var assignedIssues: [Issue] {
@@ -427,7 +427,8 @@ struct RootView: View {
         guard let selection else { return }
         switch selection {
         case .pr(let id):
-            if let pr = (authoredPRs + reviewRequestedPRs).first(where: { $0.id == id }) {
+            let reviewPRs = reviewSection.map(\.pullRequest)
+            if let pr = (authoredPRs + reviewPRs).first(where: { $0.id == id }) {
                 openURL(pr.url)
             }
         case .issue(let id):

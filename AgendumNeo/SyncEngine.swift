@@ -47,7 +47,7 @@ final class SyncEngine {
             }
             let client = GitHubClient(host: namespace.host, token: token)
             let snapshot = try await client.fetchInbox(for: namespace)
-            model.snapshot = snapshot
+            model.ingest(snapshot)
             model.lastSyncedAt = Date()
             model.lastError = nil
             model.hasCompletedFirstSync = true

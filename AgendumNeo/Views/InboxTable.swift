@@ -5,56 +5,61 @@ import SwiftUI
 /// surface, one scroll surface, and one column schema).
 enum InboxItem: Identifiable, Hashable {
     case authoredPR(PullRequest)
-    case reviewRequestedPR(PullRequest)
+    case reviewPR(ReviewInboxPR)
     case issue(Issue, viewerLogin: String?)
 
     var id: InboxItemID {
         switch self {
-        case .authoredPR(let pr), .reviewRequestedPR(let pr):
-            return .pr(pr.id)
-        case .issue(let issue, _):
-            return .issue(issue.id)
+        case .authoredPR(let pr): return .pr(pr.id)
+        case .reviewPR(let review): return .pr(review.id)
+        case .issue(let issue, _): return .issue(issue.id)
         }
     }
 
     var title: String {
         switch self {
-        case .authoredPR(let pr), .reviewRequestedPR(let pr): return pr.title
+        case .authoredPR(let pr): return pr.title
+        case .reviewPR(let review): return review.pullRequest.title
         case .issue(let issue, _): return issue.title
         }
     }
 
     var url: URL {
         switch self {
-        case .authoredPR(let pr), .reviewRequestedPR(let pr): return pr.url
+        case .authoredPR(let pr): return pr.url
+        case .reviewPR(let review): return review.pullRequest.url
         case .issue(let issue, _): return issue.url
         }
     }
 
     var author: String {
         switch self {
-        case .authoredPR(let pr), .reviewRequestedPR(let pr): return pr.author
+        case .authoredPR(let pr): return pr.author
+        case .reviewPR(let review): return review.pullRequest.author
         case .issue(let issue, _): return issue.author
         }
     }
 
     var repository: String {
         switch self {
-        case .authoredPR(let pr), .reviewRequestedPR(let pr): return pr.repository
+        case .authoredPR(let pr): return pr.repository
+        case .reviewPR(let review): return review.pullRequest.repository
         case .issue(let issue, _): return issue.repository
         }
     }
 
     var number: Int {
         switch self {
-        case .authoredPR(let pr), .reviewRequestedPR(let pr): return pr.number
+        case .authoredPR(let pr): return pr.number
+        case .reviewPR(let review): return review.pullRequest.number
         case .issue(let issue, _): return issue.number
         }
     }
 
     var isDraftPR: Bool {
         switch self {
-        case .authoredPR(let pr), .reviewRequestedPR(let pr): return pr.isDraft
+        case .authoredPR(let pr): return pr.isDraft
+        case .reviewPR(let review): return review.pullRequest.isDraft
         case .issue: return false
         }
     }
@@ -69,8 +74,11 @@ enum InboxItem: Identifiable, Hashable {
             case .changesRequested: return "Changes requested"
             case .commented: return "Commented"
             }
-        case .reviewRequestedPR:
-            return "Review requested"
+        case .reviewPR(let review):
+            switch review.status {
+            case .reviewRequested: return "Review requested"
+            case .reviewed: return "Reviewed"
+            }
         case .issue(let issue, let viewerLogin):
             switch issue.status(viewerLogin: viewerLogin) {
             case .open: return "Open"
@@ -89,8 +97,11 @@ enum InboxItem: Identifiable, Hashable {
             case .changesRequested: return StatusPalette.changesRequested
             case .commented: return StatusPalette.commented
             }
-        case .reviewRequestedPR:
-            return StatusPalette.reviewRequested
+        case .reviewPR(let review):
+            switch review.status {
+            case .reviewRequested: return StatusPalette.reviewRequested
+            case .reviewed: return StatusPalette.reviewed
+            }
         case .issue(let issue, let viewerLogin):
             switch issue.status(viewerLogin: viewerLogin) {
             case .open: return StatusPalette.open
@@ -109,6 +120,10 @@ enum StatusPalette {
     static let changesRequested   = Color(hex: 0xf87171)
     static let commented          = Color(hex: 0x94a3b8)
     static let reviewRequested    = Color(hex: 0xa78bfa)
+    // Positive "you've done your part" green for a PR you just reviewed. Emerald
+    // sits between the brighter `approved` green and the cyan `assignedToYou`
+    // teal, so it reads as a distinct success state within the review section.
+    static let reviewed           = Color(hex: 0x34d399)
     static let assignedToYou      = Color(hex: 0x2dd4bf)
 }
 
