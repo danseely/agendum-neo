@@ -144,7 +144,11 @@ enum DemoData {
             status: .reviewed,
             syncsRemaining: ReviewSectionReconciler.lingerSyncs
         )
-        return requested + [reviewed]
+        // Slot the lingering "Reviewed" row in as the 2nd item so the pill is
+        // visible without scrolling and sits among the active requests.
+        var rows = requested
+        rows.insert(reviewed, at: min(1, rows.count))
+        return rows
     }
 }
 
