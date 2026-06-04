@@ -2,8 +2,19 @@
 
 1280×640 OG images used when the repo URL is shared on Slack, Twitter, iMessage, etc.
 
-- `icon-wordmark-dark.png` — uploaded as the GitHub repo's social preview.
-- `icon-wordmark-light.png` — kept for a future Pages site / light-mode contexts.
+## Variants
+
+### Dark
+
+Uploaded as the GitHub repo's social preview.
+
+![Agendum Neo social preview, dark variant — app icon and wordmark on a dark background](icon-wordmark-dark.png)
+
+### Light
+
+Kept for a future Pages site / light-mode contexts.
+
+![Agendum Neo social preview, light variant — app icon and wordmark on a light background](icon-wordmark-light.png)
 
 ## Updating the social preview
 
