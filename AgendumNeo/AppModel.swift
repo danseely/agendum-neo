@@ -18,6 +18,13 @@ final class AppModel {
     private(set) var reviewSection: [ReviewInboxPR] = []
 
     var lastError: String?
+
+    /// A non-fatal access restriction on the current namespace's results, such
+    /// as an SSO-unauthorized org whose PRs were silently dropped from search.
+    /// Distinct from `lastError`: the fetch succeeded, but the inbox is
+    /// incomplete (often empty). Drives the SSO message instead of a blank list.
+    var accessRestriction: AccessRestriction?
+
     var isLoading: Bool = false
     var lastSyncedAt: Date?
     var hasCompletedFirstSync: Bool = false
@@ -92,12 +99,13 @@ final class AppModel {
     /// Apply a freshly-fetched snapshot, reconciling the review section so
     /// recently-reviewed PRs linger for a couple of sync cycles before dropping
     /// off the "Awaiting your review" list (issue #69).
-    func ingest(_ newSnapshot: InboxSnapshot) {
+    func ingest(_ newSnapshot: InboxSnapshot, restriction: AccessRestriction? = nil) {
         reviewSection = ReviewSectionReconciler.reconcile(
             previous: reviewSection,
             fetched: newSnapshot.reviewRequestedPRs
         )
         snapshot = newSnapshot
+        accessRestriction = restriction
     }
 
     func loadNamespaces() async {
@@ -159,6 +167,7 @@ final class AppModel {
         reviewSection = []
         lastSyncedAt = nil
         lastError = nil
+        accessRestriction = nil
         sync.start(namespace: namespace)
     }
 

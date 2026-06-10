@@ -28,6 +28,8 @@ struct RootView: View {
                 loadingContent
             } else if app.namespaces.isEmpty {
                 unavailableContent
+            } else if let restriction = app.accessRestriction, isInboxEmpty {
+                restrictionContent(restriction)
             } else {
                 inboxList
             }
@@ -40,15 +42,15 @@ struct RootView: View {
         )
         .toolbar { toolbarContent }
         .safeAreaInset(edge: .top, spacing: 0) {
-            if let err = app.lastError {
-                Text(err)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .lineLimit(2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(.bar)
+            VStack(spacing: 0) {
+                if let err = app.lastError {
+                    bannerText(err, color: .red)
+                }
+                // Partial results still render the list; warn above it. The
+                // empty case is handled by `restrictionContent` instead.
+                if let restriction = app.accessRestriction, !isInboxEmpty {
+                    bannerText(restriction.bannerText(owner: ownerName), color: .orange)
+                }
             }
         }
         // Browser-style zoom. .scaleEffect alone scales the rendered output
@@ -231,6 +233,49 @@ struct RootView: View {
             }
             .disabled(app.isLoading)
         }
+    }
+
+    /// Shown in place of an empty list when the active namespace returned no
+    /// results because the token can't access it (e.g. unauthorized SSO org).
+    private func restrictionContent(_ restriction: AccessRestriction) -> some View {
+        ContentUnavailableView {
+            Label(restriction.title(owner: ownerName), systemImage: "lock.shield")
+        } description: {
+            Text(restriction.detail(owner: ownerName))
+        } actions: {
+            if let url = restriction.authorizationURL {
+                Button {
+                    openURL(url)
+                } label: {
+                    Label("Authorize Access", systemImage: "checkmark.shield")
+                }
+            }
+            Button {
+                Task { await app.refresh() }
+            } label: {
+                Label("Refresh", systemImage: "arrow.clockwise")
+            }
+            .disabled(app.isLoading)
+        }
+    }
+
+    private func bannerText(_ text: String, color: Color) -> some View {
+        Text(text)
+            .font(.caption)
+            .foregroundStyle(color)
+            .lineLimit(2)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(.bar)
+    }
+
+    private var ownerName: String {
+        app.activeNamespace?.owner ?? "this account"
+    }
+
+    private var isInboxEmpty: Bool {
+        authoredPRs.isEmpty && reviewSection.isEmpty && assignedIssues.isEmpty
     }
 
     // MARK: - List

@@ -33,7 +33,7 @@ actor GitHubClient {
 
     func fetchNamespaces(forAccount account: GHAccount) async throws -> [Namespace] {
         let body: [String: Any] = ["query": Queries.namespaces]
-        let envelope: GraphQLEnvelope<NamespacesData> = try await post(body: body)
+        let envelope: GraphQLEnvelope<NamespacesData> = try await post(body: body).envelope
         if let errs = envelope.errors, !errs.isEmpty {
             throw GitHubError.graphQLErrors(errs.map(\.message))
         }
@@ -57,7 +57,7 @@ actor GitHubClient {
         return [user] + orgs.sorted { $0.owner.localizedCaseInsensitiveCompare($1.owner) == .orderedAscending }
     }
 
-    func fetchInbox(for namespace: Namespace) async throws -> InboxSnapshot {
+    func fetchInbox(for namespace: Namespace) async throws -> InboxResult {
         let owner = namespace.owner
         let variables: [String: String] = [
             "authored": "is:open is:pr author:@me user:\(owner) archived:false",
@@ -68,7 +68,8 @@ actor GitHubClient {
             "query": Queries.inbox,
             "variables": variables
         ]
-        let envelope: GraphQLEnvelope<InboxData> = try await post(body: body)
+        let result: PostResult<InboxData> = try await post(body: body)
+        let envelope = result.envelope
         if let errs = envelope.errors, !errs.isEmpty {
             throw GitHubError.graphQLErrors(errs.map(\.message))
         }
@@ -80,16 +81,23 @@ actor GitHubClient {
         let reviewRequested = payload.reviewRequested.nodes.compactMap { $0.toPullRequest() }
         let issues = payload.assignedIssues.nodes.compactMap { $0.toIssue() }
 
-        return InboxSnapshot(
+        let snapshot = InboxSnapshot(
             namespace: namespace,
             fetchedAt: Date(),
             authoredPRs: authored,
             reviewRequestedPRs: reviewRequested,
             assignedIssues: issues
         )
+        // An SSO-unauthorized token silently drops the org's search results and
+        // tags the response with `X-GitHub-SSO`. Surface it so the empty inbox
+        // reads as "authorize your token", not "you have no PRs".
+        return InboxResult(
+            snapshot: snapshot,
+            restriction: AccessRestriction.parse(ssoHeader: result.ssoHeader)
+        )
     }
 
-    private func post<T: Decodable>(body: [String: Any]) async throws -> GraphQLEnvelope<T> {
+    private func post<T: Decodable>(body: [String: Any]) async throws -> PostResult<T> {
         let bodyData = try JSONSerialization.data(withJSONObject: body)
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
@@ -106,10 +114,15 @@ actor GitHubClient {
             throw GitHubError.httpStatus(http.statusCode, body: preview)
         }
 
+        // GraphQL returns 200 with partial data when an SSO-protected org is
+        // dropped from the results; the only signal is this header.
+        let ssoHeader = http.value(forHTTPHeaderField: "X-GitHub-SSO")
+
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         do {
-            return try decoder.decode(GraphQLEnvelope<T>.self, from: data)
+            let envelope = try decoder.decode(GraphQLEnvelope<T>.self, from: data)
+            return PostResult(envelope: envelope, ssoHeader: ssoHeader)
         } catch {
             throw GitHubError.decoding(String(describing: error))
         }
@@ -123,7 +136,21 @@ actor GitHubClient {
     }
 }
 
+/// A fetched inbox plus any non-fatal access restriction detected on the
+/// response (e.g. an SSO-unauthorized org that silently dropped its results).
+struct InboxResult: Sendable {
+    let snapshot: InboxSnapshot
+    let restriction: AccessRestriction?
+}
+
 // MARK: - Wire types
+
+/// A decoded GraphQL envelope paired with the response's `X-GitHub-SSO` header
+/// (nil when absent), so callers can detect silent SSO result-dropping.
+private struct PostResult<T: Decodable> {
+    let envelope: GraphQLEnvelope<T>
+    let ssoHeader: String?
+}
 
 private struct GraphQLEnvelope<T: Decodable>: Decodable {
     let data: T?
