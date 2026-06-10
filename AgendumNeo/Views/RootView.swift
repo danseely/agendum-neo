@@ -12,6 +12,35 @@ struct RootView: View {
         case menuBar
     }
 
+    /// How (if at all) to surface an access restriction in the UI.
+    enum RestrictionDisplay: Equatable {
+        /// Don't surface anything (no restriction, or a personal `.user`
+        /// namespace where the org-SSO copy makes no sense).
+        case none
+        /// Replace the inbox with the full-screen restriction message (the
+        /// restricted namespace returned an empty inbox).
+        case fullScreen
+        /// Show the partial-results banner above a non-empty list.
+        case banner
+    }
+
+    /// Pure, testable decision for whether and how to surface an access
+    /// restriction. The org-SSO copy only applies to `.org` namespaces; a
+    /// `.user` namespace never shows it (an SSO "authorize" prompt is
+    /// nonsensical for a personal account), regardless of any restriction.
+    ///
+    /// `nonisolated`: `RootView` is a `@MainActor` SwiftUI `View`, but this
+    /// helper touches no actor state, so it's callable from any context
+    /// (including synchronous tests) without hopping to the main actor.
+    nonisolated static func shouldShowRestriction(
+        kind: Namespace.Kind?,
+        restriction: AccessRestriction?,
+        inboxEmpty: Bool
+    ) -> RestrictionDisplay {
+        guard kind == .org, restriction != nil else { return .none }
+        return inboxEmpty ? .fullScreen : .banner
+    }
+
     @Environment(AppModel.self) private var app
     @Environment(\.openURL) private var openURL
     @Environment(\.uiFontScale) private var uiFontScale
@@ -28,6 +57,8 @@ struct RootView: View {
                 loadingContent
             } else if app.namespaces.isEmpty {
                 unavailableContent
+            } else if restrictionDisplay == .fullScreen, let restriction = app.accessRestriction {
+                restrictionContent(restriction)
             } else {
                 inboxList
             }
@@ -40,15 +71,15 @@ struct RootView: View {
         )
         .toolbar { toolbarContent }
         .safeAreaInset(edge: .top, spacing: 0) {
-            if let err = app.lastError {
-                Text(err)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .lineLimit(2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(.bar)
+            VStack(spacing: 0) {
+                if let err = app.lastError {
+                    bannerText(err, color: .red)
+                }
+                // Partial results still render the list; warn above it. The
+                // empty case is handled by `restrictionContent` instead.
+                if restrictionDisplay == .banner, let restriction = app.accessRestriction {
+                    bannerText(restriction.bannerText(owner: ownerName), color: .orange)
+                }
             }
         }
         // Browser-style zoom. .scaleEffect alone scales the rendered output
@@ -231,6 +262,57 @@ struct RootView: View {
             }
             .disabled(app.isLoading)
         }
+    }
+
+    /// Shown in place of an empty list when the active namespace returned no
+    /// results because the token can't access it (e.g. unauthorized SSO org).
+    private func restrictionContent(_ restriction: AccessRestriction) -> some View {
+        ContentUnavailableView {
+            Label(restriction.title(owner: ownerName), systemImage: "lock.shield")
+        } description: {
+            Text(restriction.detail(owner: ownerName))
+        } actions: {
+            if let url = restriction.authorizationURL {
+                Button {
+                    openURL(url)
+                } label: {
+                    Label("Authorize Access", systemImage: "checkmark.shield")
+                }
+            }
+            Button {
+                Task { await app.refresh() }
+            } label: {
+                Label("Refresh", systemImage: "arrow.clockwise")
+            }
+            .disabled(app.isLoading)
+        }
+    }
+
+    private func bannerText(_ text: String, color: Color) -> some View {
+        Text(text)
+            .font(.caption)
+            .foregroundStyle(color)
+            .lineLimit(2)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(.bar)
+    }
+
+    private var ownerName: String {
+        app.activeNamespace?.owner ?? "this account"
+    }
+
+    private var isInboxEmpty: Bool {
+        authoredPRs.isEmpty && reviewSection.isEmpty && assignedIssues.isEmpty
+    }
+
+    private var restrictionDisplay: RestrictionDisplay {
+        Self.shouldShowRestriction(
+            kind: app.activeNamespace?.kind,
+            restriction: app.accessRestriction,
+            inboxEmpty: isInboxEmpty
+        )
     }
 
     // MARK: - List
