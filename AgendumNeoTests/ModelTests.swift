@@ -453,6 +453,34 @@ struct AppModelLifecycleTests {
         #expect(model.hasCompletedFirstSync == false)
         #expect(model.snapshot == nil)
         #expect(model.lastError == nil)
+        #expect(model.accessRestriction == nil)
+    }
+
+    @Test("ingest stores the access restriction, and a later clean sync clears it")
+    func ingestTracksAccessRestriction() {
+        let model = AppModel()
+        let namespace = Namespace(
+            host: "github.com",
+            accountLogin: "octocat",
+            owner: "acme",
+            kind: .org
+        )
+        let snapshot = InboxSnapshot(
+            namespace: namespace,
+            fetchedAt: Date(),
+            authoredPRs: [],
+            reviewRequestedPRs: [],
+            assignedIssues: []
+        )
+
+        model.ingest(snapshot, restriction: .ssoPartialResults)
+        #expect(model.accessRestriction == .ssoPartialResults)
+
+        // A subsequent successful sync that carries no restriction (e.g. the
+        // org was authorized, or the user switched to an accessible namespace)
+        // must clear the stale restriction.
+        model.ingest(snapshot, restriction: nil)
+        #expect(model.accessRestriction == nil)
     }
 }
 
