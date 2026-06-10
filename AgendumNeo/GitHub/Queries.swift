@@ -34,8 +34,21 @@ enum Queries {
     // rather than re-requests (issue #50). Don't add `... on Team { slug }`
     // or similar expecting it to count as a re-request without revisiting
     // `deriveReReviewRequested`.
+    // `orgAccessProbe` is a zero-extra-request SSO probe folded into the inbox
+    // query. A scoped `search(user:<org>)` against a fully SSO-locked org can
+    // come back as 200 with empty `nodes` and NO `errors`/header — search has
+    // nothing accessible to traverse, so it looks identical to a genuinely
+    // empty inbox. Direct node access does NOT: `organization(login:)` returns
+    // a FORBIDDEN / `saml_failure` error for an org the token isn't SSO-authorized
+    // for. Including it here lets `fetchInbox` distinguish "blocked by SSO" from
+    // "nothing assigned" in the same round-trip. It's `@include`-gated to org
+    // namespaces only — for a personal `.user` namespace `organization(login:)`
+    // would 404 (NOT_FOUND), which we must not treat as an error.
     static let inbox = """
-    query Inbox($authored: String!, $reviewReq: String!, $issues: String!) {
+    query Inbox($authored: String!, $reviewReq: String!, $issues: String!, $owner: String!, $includeOrgProbe: Boolean!) {
+      orgAccessProbe: organization(login: $owner) @include(if: $includeOrgProbe) {
+        login
+      }
       authored: search(query: $authored, type: ISSUE, first: 50) {
         nodes { ...prFields }
       }

@@ -18,17 +18,24 @@ actor GitHubClient {
     private let session: URLSession
     private let endpoint: URL
 
-    init(host: String, token: String) {
+    /// - Parameter session: Injectable for tests so a `URLProtocol`-backed
+    ///   session can stub responses. Defaults to the production ephemeral
+    ///   session, preserving existing behavior.
+    init(host: String, token: String, session: URLSession? = nil) {
         self.host = host
         self.token = token
+        self.session = session ?? Self.makeDefaultSession()
+        self.endpoint = Self.graphqlEndpoint(for: host)
+    }
+
+    private static func makeDefaultSession() -> URLSession {
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 30
         config.httpAdditionalHeaders = [
             "User-Agent": "AgendumNeo/0.1 (+local)",
             "Accept": "application/vnd.github+json"
         ]
-        self.session = URLSession(configuration: config)
-        self.endpoint = Self.graphqlEndpoint(for: host)
+        return URLSession(configuration: config)
     }
 
     func fetchNamespaces(forAccount account: GHAccount) async throws -> [Namespace] {
@@ -59,10 +66,15 @@ actor GitHubClient {
 
     func fetchInbox(for namespace: Namespace) async throws -> InboxResult {
         let owner = namespace.owner
-        let variables: [String: String] = [
+        // The org-access probe only makes sense for org namespaces;
+        // `organization(login:)` against a personal account 404s. `@include`
+        // drops the field entirely when this is false (see Queries.inbox).
+        let variables: [String: Any] = [
             "authored": "is:open is:pr author:@me user:\(owner) archived:false",
             "reviewReq": "is:open is:pr review-requested:@me user:\(owner) archived:false",
-            "issues": "is:open is:issue assignee:@me user:\(owner) archived:false"
+            "issues": "is:open is:issue assignee:@me user:\(owner) archived:false",
+            "owner": owner,
+            "includeOrgProbe": namespace.kind == .org
         ]
         let body: [String: Any] = [
             "query": Queries.inbox,
@@ -70,31 +82,63 @@ actor GitHubClient {
         ]
         let result: PostResult<InboxData> = try await post(body: body)
         let envelope = result.envelope
+
+        // The header-parsed restriction (when present), used as the baseline and
+        // also as a richer fallback for the errors-array SAML path below.
+        let headerRestriction = AccessRestriction.parse(ssoHeader: result.ssoHeader)
+
+        // An SSO-unauthorized token can surface a SAML restriction in a few
+        // shapes, all HTTP 200: (a) a non-empty GraphQL `errors` array with
+        // `FORBIDDEN` / `extensions.saml_failure` — alongside PARTIAL `data`
+        // (the accessible results) per the real `gh status` behavior — or (b)
+        // empty/absent `data` carrying just the `X-GitHub-SSO` header. We keep
+        // whatever data did come back and attach the restriction rather than
+        // throwing, so a partly-visible org still renders its visible rows.
+        var samlRestriction: AccessRestriction?
         if let errs = envelope.errors, !errs.isEmpty {
-            throw GitHubError.graphQLErrors(errs.map(\.message))
+            if Self.errorsIndicateSAML(errs) {
+                // Prefer the header restriction when it carries an authorization
+                // URL; otherwise fall back to `.ssoRequired` carrying whatever
+                // URL the header yielded (may be nil).
+                if let headerRestriction, headerRestriction.authorizationURL != nil {
+                    samlRestriction = headerRestriction
+                } else {
+                    samlRestriction = .ssoRequired(url: headerRestriction?.authorizationURL)
+                }
+            } else {
+                // Genuine, non-SAML errors still fail the fetch.
+                throw GitHubError.graphQLErrors(errs.map(\.message))
+            }
         }
-        guard let payload = envelope.data else {
+
+        // Build the snapshot from whatever `data` arrived. Under SAML this is
+        // the partial (possibly empty) set; on the happy path it's the full set.
+        let snapshot: InboxSnapshot
+        if let payload = envelope.data {
+            snapshot = InboxSnapshot(
+                namespace: namespace,
+                fetchedAt: Date(),
+                authoredPRs: payload.authored.nodes.compactMap { $0.toPullRequest() },
+                reviewRequestedPRs: payload.reviewRequested.nodes.compactMap { $0.toPullRequest() },
+                assignedIssues: payload.assignedIssues.nodes.compactMap { $0.toIssue() }
+            )
+        } else if samlRestriction != nil {
+            // SAML blocked the whole query and returned no data — empty inbox,
+            // restriction surfaces the reason instead of a blank list.
+            snapshot = InboxSnapshot(
+                namespace: namespace,
+                fetchedAt: Date(),
+                authoredPRs: [],
+                reviewRequestedPRs: [],
+                assignedIssues: []
+            )
+        } else {
             throw GitHubError.decoding("missing data")
         }
 
-        let authored = payload.authored.nodes.compactMap { $0.toPullRequest() }
-        let reviewRequested = payload.reviewRequested.nodes.compactMap { $0.toPullRequest() }
-        let issues = payload.assignedIssues.nodes.compactMap { $0.toIssue() }
-
-        let snapshot = InboxSnapshot(
-            namespace: namespace,
-            fetchedAt: Date(),
-            authoredPRs: authored,
-            reviewRequestedPRs: reviewRequested,
-            assignedIssues: issues
-        )
-        // An SSO-unauthorized token silently drops the org's search results and
-        // tags the response with `X-GitHub-SSO`. Surface it so the empty inbox
-        // reads as "authorize your token", not "you have no PRs".
-        return InboxResult(
-            snapshot: snapshot,
-            restriction: AccessRestriction.parse(ssoHeader: result.ssoHeader)
-        )
+        // SAML-from-errors wins (it's the authoritative signal); otherwise fall
+        // back to the header (the silent-empty case).
+        return InboxResult(snapshot: snapshot, restriction: samlRestriction ?? headerRestriction)
     }
 
     private func post<T: Decodable>(body: [String: Any]) async throws -> PostResult<T> {
@@ -114,8 +158,9 @@ actor GitHubClient {
             throw GitHubError.httpStatus(http.statusCode, body: preview)
         }
 
-        // GraphQL returns 200 with partial data when an SSO-protected org is
-        // dropped from the results; the only signal is this header.
+        // Captured for SSO detection. On GraphQL the authoritative SAML signal
+        // is the `errors` array (see `fetchInbox`); this header is a secondary,
+        // not-always-present hint that also carries an authorization URL.
         let ssoHeader = http.value(forHTTPHeaderField: "X-GitHub-SSO")
 
         let decoder = JSONDecoder()
@@ -159,6 +204,53 @@ private struct GraphQLEnvelope<T: Decodable>: Decodable {
 
 private struct GraphQLError: Decodable {
     let message: String
+    let type: String?
+    let extensions: Extensions?
+
+    struct Extensions: Decodable {
+        let samlFailure: Bool
+
+        private enum CodingKeys: String, CodingKey {
+            case samlFailure = "saml_failure"
+        }
+
+        init(from decoder: any Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.samlFailure = (try c.decodeIfPresent(Bool.self, forKey: .samlFailure)) ?? false
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case message, type, extensions
+    }
+
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.message = try c.decode(String.self, forKey: .message)
+        self.type = try c.decodeIfPresent(String.self, forKey: .type)
+        self.extensions = try c.decodeIfPresent(Extensions.self, forKey: .extensions)
+    }
+
+    /// True when this error indicates a SAML SSO restriction: either GitHub
+    /// flagged it explicitly via `extensions.saml_failure`, or it is a
+    /// FORBIDDEN error whose message mentions SAML.
+    var indicatesSAML: Bool {
+        if extensions?.samlFailure == true { return true }
+        if type == "FORBIDDEN", message.range(of: "SAML", options: .caseInsensitive) != nil {
+            return true
+        }
+        return false
+    }
+}
+
+extension GitHubClient {
+    /// Whether a GraphQL `errors` array signals a SAML SSO restriction (vs a
+    /// genuine error that should be thrown). `fileprivate` because it takes the
+    /// private wire type; exercised end-to-end through `fetchInbox` (see the
+    /// SSO tests stubbing a `URLProtocol`).
+    fileprivate static func errorsIndicateSAML(_ errors: [GraphQLError]) -> Bool {
+        errors.contains { $0.indicatesSAML }
+    }
 }
 
 private struct NamespacesData: Decodable {

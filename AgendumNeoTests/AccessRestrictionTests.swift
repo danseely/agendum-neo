@@ -41,9 +41,9 @@ struct AccessRestrictionTests {
                 == .ssoRequired(url: URL(string: "https://x.test/sso")))
     }
 
-    @Test("Unknown future directive is treated as a restriction, not ignored")
+    @Test("Unknown directive is not a restriction")
     func unknownDirective() {
-        #expect(AccessRestriction.parse(ssoHeader: "some-new-thing; foo=bar") == .ssoPartialResults)
+        #expect(AccessRestriction.parse(ssoHeader: "some-new-thing; foo=bar") == nil)
     }
 
     @Test("User-facing copy names the owner")

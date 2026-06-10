@@ -12,6 +12,31 @@ struct RootView: View {
         case menuBar
     }
 
+    /// How (if at all) to surface an access restriction in the UI.
+    enum RestrictionDisplay: Equatable {
+        /// Don't surface anything (no restriction, or a personal `.user`
+        /// namespace where the org-SSO copy makes no sense).
+        case none
+        /// Replace the inbox with the full-screen restriction message (the
+        /// restricted namespace returned an empty inbox).
+        case fullScreen
+        /// Show the partial-results banner above a non-empty list.
+        case banner
+    }
+
+    /// Pure, testable decision for whether and how to surface an access
+    /// restriction. The org-SSO copy only applies to `.org` namespaces; a
+    /// `.user` namespace never shows it (an SSO "authorize" prompt is
+    /// nonsensical for a personal account), regardless of any restriction.
+    static func shouldShowRestriction(
+        kind: Namespace.Kind?,
+        restriction: AccessRestriction?,
+        inboxEmpty: Bool
+    ) -> RestrictionDisplay {
+        guard kind == .org, restriction != nil else { return .none }
+        return inboxEmpty ? .fullScreen : .banner
+    }
+
     @Environment(AppModel.self) private var app
     @Environment(\.openURL) private var openURL
     @Environment(\.uiFontScale) private var uiFontScale
@@ -28,7 +53,7 @@ struct RootView: View {
                 loadingContent
             } else if app.namespaces.isEmpty {
                 unavailableContent
-            } else if let restriction = app.accessRestriction, isInboxEmpty {
+            } else if restrictionDisplay == .fullScreen, let restriction = app.accessRestriction {
                 restrictionContent(restriction)
             } else {
                 inboxList
@@ -48,7 +73,7 @@ struct RootView: View {
                 }
                 // Partial results still render the list; warn above it. The
                 // empty case is handled by `restrictionContent` instead.
-                if let restriction = app.accessRestriction, !isInboxEmpty {
+                if restrictionDisplay == .banner, let restriction = app.accessRestriction {
                     bannerText(restriction.bannerText(owner: ownerName), color: .orange)
                 }
             }
@@ -276,6 +301,14 @@ struct RootView: View {
 
     private var isInboxEmpty: Bool {
         authoredPRs.isEmpty && reviewSection.isEmpty && assignedIssues.isEmpty
+    }
+
+    private var restrictionDisplay: RestrictionDisplay {
+        Self.shouldShowRestriction(
+            kind: app.activeNamespace?.kind,
+            restriction: app.accessRestriction,
+            inboxEmpty: isInboxEmpty
+        )
     }
 
     // MARK: - List

@@ -38,9 +38,10 @@ enum AccessRestriction: Sendable, Equatable {
         case "partial-results":
             return .ssoPartialResults
         default:
-            // An unrecognized future directive still means access is being
-            // restricted — surface it rather than rendering a blank inbox.
-            return .ssoPartialResults
+            // Only the documented `required` and `partial-results` directives
+            // map to a restriction. An unrecognized directive is not treated as
+            // a restriction (avoids a false SSO message on an unknown header).
+            return nil
         }
     }
 
