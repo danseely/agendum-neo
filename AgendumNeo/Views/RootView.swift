@@ -28,7 +28,11 @@ struct RootView: View {
     /// restriction. The org-SSO copy only applies to `.org` namespaces; a
     /// `.user` namespace never shows it (an SSO "authorize" prompt is
     /// nonsensical for a personal account), regardless of any restriction.
-    static func shouldShowRestriction(
+    ///
+    /// `nonisolated`: `RootView` is a `@MainActor` SwiftUI `View`, but this
+    /// helper touches no actor state, so it's callable from any context
+    /// (including synchronous tests) without hopping to the main actor.
+    nonisolated static func shouldShowRestriction(
         kind: Namespace.Kind?,
         restriction: AccessRestriction?,
         inboxEmpty: Bool
