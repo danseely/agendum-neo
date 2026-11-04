@@ -4,6 +4,10 @@ import SwiftUI
 struct AgendumNeoApp: App {
     @State private var app = AppModel()
 
+    init() {
+        RestorationGuard.install()
+    }
+
     var body: some Scene {
         WindowGroup("Agendum Neo") {
             RootView(presentation: .window)
