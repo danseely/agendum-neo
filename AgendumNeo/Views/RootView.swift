@@ -443,15 +443,15 @@ struct RootView: View {
     // MARK: - Derived data
 
     private var authoredPRs: [PullRequest] {
-        app.snapshot?.authoredPRs ?? []
+        InboxOrdering.groupedByRepository(app.snapshot?.authoredPRs ?? [], repository: \.repository)
     }
 
     private var reviewSection: [ReviewInboxPR] {
-        app.reviewSection
+        InboxOrdering.groupedByRepository(app.reviewSection, repository: \.pullRequest.repository)
     }
 
     private var assignedIssues: [Issue] {
-        app.snapshot?.assignedIssues ?? []
+        InboxOrdering.groupedByRepository(app.snapshot?.assignedIssues ?? [], repository: \.repository)
     }
 
     private var viewerLogin: String? {
