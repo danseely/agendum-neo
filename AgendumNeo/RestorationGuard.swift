@@ -27,30 +27,21 @@ enum RestorationGuard {
     #else
     private static let keySuffix = ""
     #endif
-    private static let osVersionKey = "AgendumNeo.restorationOSMajorVersion" + keySuffix
-    private static let launchMarkerKey = "AgendumNeo.restorationInProgress" + keySuffix
 
     /// Call from `App.init`, which runs before AppKit reads saved state.
     static func install() {
         // Unit tests run hosted in the app; leave NSApplication alone there.
         guard NSClassFromString("XCTestCase") == nil else { return }
 
-        let defaults = UserDefaults.standard
-        let major = ProcessInfo.processInfo.operatingSystemVersion.majorVersion
-        let decline = shouldDecline(
-            storedOSMajor: defaults.object(forKey: osVersionKey) as? Int,
-            currentOSMajor: major,
-            lastLaunchDied: defaults.bool(forKey: launchMarkerKey)
-        )
-
-        defaults.set(major, forKey: osVersionKey)
-        defaults.set(true, forKey: launchMarkerKey)
+        let suffix = keySuffix
+        let ledger = RestorationLaunchLedger(defaults: .standard, keySuffix: suffix)
+        let decline = ledger.beginLaunch(osMajor: ProcessInfo.processInfo.operatingSystemVersion.majorVersion)
         NotificationCenter.default.addObserver(
             forName: NSApplication.didFinishRestoringWindowsNotification,
             object: nil,
             queue: .main
         ) { _ in
-            UserDefaults.standard.set(false, forKey: launchMarkerKey)
+            RestorationLaunchLedger(defaults: .standard, keySuffix: suffix).restorationFinished()
         }
 
         if decline {
@@ -93,5 +84,34 @@ enum RestorationGuard {
             return true
         }
         method_setImplementation(method, imp_implementationWithBlock(decline))
+    }
+}
+
+/// Per-launch bookkeeping for `RestorationGuard`, kept apart from the AppKit hook
+/// so tests can drive it against a throwaway defaults suite.
+struct RestorationLaunchLedger {
+    let defaults: UserDefaults
+    let keySuffix: String
+
+    var osVersionKey: String { "AgendumNeo.restorationOSMajorVersion" + keySuffix }
+    var launchMarkerKey: String { "AgendumNeo.restorationInProgress" + keySuffix }
+
+    /// Records the start of a launch on `osMajor` and returns whether this launch
+    /// should decline window restoration. The marker stays set until
+    /// `restorationFinished()`, so a launch that dies first makes the next one decline.
+    func beginLaunch(osMajor: Int) -> Bool {
+        let decline = RestorationGuard.shouldDecline(
+            storedOSMajor: defaults.object(forKey: osVersionKey) as? Int,
+            currentOSMajor: osMajor,
+            lastLaunchDied: defaults.bool(forKey: launchMarkerKey)
+        )
+        defaults.set(osMajor, forKey: osVersionKey)
+        defaults.set(true, forKey: launchMarkerKey)
+        return decline
+    }
+
+    /// Call once AppKit has finished restoring windows.
+    func restorationFinished() {
+        defaults.set(false, forKey: launchMarkerKey)
     }
 }
